@@ -1,0 +1,275 @@
+﻿@page "/products"
+@attribute [StreamRendering]
+@inject HttpClient Http
+@inject SelectedMerchantState MerchantState
+
+
+<div class="pos-container">
+    <section class="form-section">
+        @foreach (var category in merchantCategories)
+        {
+            <button @onclick="() => SelectCategory(category.Id)">
+                @category.Name
+            </button>
+        }
+    </section>
+    <section class="products-panel">
+        <h3>Produits</h3>
+
+        @if (merchantProducts is null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            @foreach (var merchantProduct in merchantProducts)
+            {
+                Product product = allProducts.FirstOrDefault(p => p.Id == merchantProduct.ProductId);
+                @if (product != null && product.CategoryId == categorySelectedId)
+                {
+                    @if (@merchantProduct.Stock <= 0)
+                    {
+                        <button style="color:red">
+                            @product.Name
+                        </button>
+                    }
+                    else
+                    {
+                        <button style="color:cadetblue" @onclick="() => SelectProduct(product)">
+                            @product.Name
+                        </button>
+                    }
+                }
+            }
+        }
+    </section>
+
+    <section class="selected-product-panel">
+        <h3>Produit sélectionné</h3>
+            @if (selectedProduct != null)
+            {
+                <div>
+                    <h3>@selectedProduct.Name</h3>
+                    @{MerchantProduct merchantProduct = merchantProducts.FirstOrDefault(mp => mp.ProductId == selectedProduct.Id);
+                    Category category = merchantCategories.FirstOrDefault(c => c.Id == selectedProduct.CategoryId);}
+                    <p>Prix : @merchantProduct.Price.ToString("C")</p>
+                    @if (category != null && category.Tps)
+                    {
+                        <p>TPS</p>
+                    }
+                    @if (category != null && category.Tvq)
+                    {
+                        <p>TVQ</p>
+                    }
+
+                    <label>Quantité : @merchantProduct.Stock</label>
+                    <input type="number" @bind="quantity" />
+
+                    <button @onclick="() => AddProduct(category)">OK</button>
+                    <button @onclick="Cancel">Cancel</button>
+                </div>
+            }
+    </section>
+
+
+    <section class="invoice-panel">
+        <h3>Facture</h3>
+        @if (invoiceItems is not null)
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Quantité</th>
+                        <th>Produit</th>
+                        <th>Prix</th>
+                        <th>Taxe</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var item in invoiceItems)
+                    {
+                        <tr class="@(selectedItem == item ? "selected-row" : "")"
+                            @onclick="() => SelectSaleItem(item)">
+                            <td>@item.Item1</td>
+                            <td>@item.Item2</td>
+                            <td>@item.Item4</td>
+                            <td>@item.Item5</td>
+                        </tr>
+                    }
+                </tbody>
+
+                <tfoot>
+                    <tr>
+                        <td colspan="3">Sous-total</td>
+                        <td>@sousTotal.ToString("C")</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3">TPS</td>
+                        <td>@priceTPS.ToString("C")</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3">TVQ</td>
+                        <td>@priceTVQ.ToString("C")</td>
+                    </tr>
+                    <tr class="invoice-total">
+                        <td colspan="3">TOTAL</td>
+                        <td>@total.ToString("C")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        }
+
+        <button @onclick="Pay">Payer</button>
+        <button @onclick="RemoveSelectedItem">Supprimer item sélectionné</button>
+
+    </section>
+    <MessageDialog @ref="messageDialog" />
+</div>
+
+@code {
+    //[Parameter]
+    private List<MerchantProduct> merchantProducts = new();
+    private List<Category> merchantCategories = new();
+    private List<Product>? allProducts;
+    private Product? selectedProduct;
+    private int categorySelectedId = 0;
+    private (int Quantity, string Name, int ProductId, decimal Price, string Taxe) selectedItem;
+    private int quantity = 1;
+    private List<(int Quantity, string Name, int ProductId, decimal Price, string Taxe)> invoiceItems = new List<(int Quantity, string Name, int ProductId, decimal Price, string Taxe)>();
+    private decimal sousTotal = 0;
+    private decimal priceTPS = 0;
+    private decimal priceTVQ = 0;
+    private decimal total = 0;
+    private MessageDialog? messageDialog;
+
+    protected override async Task OnInitializedAsync()
+    {
+        allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products");
+        int num = allProducts.Count;
+        merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
+        merchantCategories = MerchantState.SelectedMerchant.Categories.ToList();
+    }
+
+    private void SelectProduct(Product product)
+    {
+        selectedProduct = product;
+        quantity = 1;
+    }
+
+    private void AddProduct(Category category)
+    {
+        string taxe = "";
+        if (selectedProduct != null)
+        {
+            if (category != null && category.Tps)
+            {
+                taxe += "F";
+                priceTPS += (selectedProduct.PriceDefault * quantity) * 0.05m;
+            }
+            if (category != null && category.Tvq)
+            {
+                taxe += "P";
+                priceTVQ += (selectedProduct.PriceDefault * quantity) * 0.0975m;
+            }
+        }
+        // ajouter le produit à la commande
+        invoiceItems.Add((
+            Quantity: quantity,
+            Name: selectedProduct.Name,      
+            ProductId: selectedProduct.Id,
+            Price: selectedProduct.PriceDefault * quantity,
+            Taxe: taxe
+        ));
+        sousTotal += (selectedProduct.PriceDefault) * quantity;
+        total = sousTotal + priceTPS + priceTVQ;
+        // réinitialiser la sélection
+        selectedProduct = null;
+        quantity = 1;
+    }
+
+    private void Cancel()
+    {
+        selectedProduct = null;
+    }
+    private async Task Pay()
+    {
+        // Par exemple, vous pouvez rediriger vers une page de paiement ou afficher un message de confirmation
+        Console.WriteLine($"Total à payer : {total} $");
+        var request = new CreateSaleRequest
+        {
+            Date = DateTime.Now,
+            Total = total,
+
+            Items = invoiceItems.Select(item => new CreateSaleItemRequest
+            {
+                ProductId = item.ProductId,
+                Quantity = item.Quantity,
+                ItemPrice = item.Price,
+                TpsAmount = item.Taxe.Contains("F") ? item.Price * 0.05m : 0,
+                TvqAmount = item.Taxe.Contains("P") ? item.Price * 0.0975m : 0
+            }).ToList()
+        };
+
+        await Http.PostAsJsonAsync($"api/Sales/{MerchantState.SelectedMerchant.Id}", request);
+
+        ResetTransaction();
+        if (messageDialog is not null)
+        {
+            messageDialog.Title = "Vente réussie";
+            messageDialog.Message = "La vente de " + total + " a été effectuée avec succès!";
+
+            await messageDialog.ShowAsync();
+        }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+
+        }
+    }
+
+    private void SelectSaleItem((int Quantity, string Name, int productID, decimal Price, string Taxe) item)
+    {
+        selectedItem = item;
+    }
+
+    private void RemoveSelectedItem()
+    {
+        if (selectedItem.Name != null)
+        {
+            invoiceItems.Remove(selectedItem);
+            
+            sousTotal -= selectedItem.Item4;
+            if (selectedItem.Taxe.Contains("F"))
+            {
+                priceTPS -= selectedItem.Price * 0.05m;
+            }
+            if (selectedItem.Taxe.Contains("P"))
+            {
+                priceTVQ -= selectedItem.Price * 0.0975m;
+            }
+            total = sousTotal + priceTPS + priceTVQ;
+
+            selectedItem = default;
+            quantity = 1;
+        }
+    }
+
+    private void ResetTransaction()
+    {
+        invoiceItems = new List<(int Quantity, string Name, int ProductId, decimal Price, string Taxe)>();
+        selectedProduct = null;
+        quantity = 1;
+        sousTotal = 0;
+        priceTPS = 0;
+        priceTVQ = 0;
+        total = 0;
+    }
+
+    private void SelectCategory(int categoryId)
+    {
+        categorySelectedId = categoryId;
+    }
+}

@@ -1,0 +1,170 @@
+﻿@page "/edit-product"
+@inject HttpClient Http
+@inject SelectedMerchantState MerchantState
+
+<h3>Modifier le produit</h3>
+
+@if (allProduct is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <section class="form-section">
+        <h4>Catégories et produits</h4>
+
+        <div class="category-selection">
+            <label for="category">Catégorie :</label>
+                <select id="category" @bind="selectedCategoryId">
+                @if (merchantCategories is not null)
+                {
+                    @foreach (var category in merchantCategories)
+                    {
+                        <option value="@category.Id">
+                            @category.Name
+                        </option>
+                    }
+                }
+                </select>
+        </div>
+    </section>
+    <section class="form-section">
+        <table class="product-table">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Prix default</th>
+                    <th>Taxe</th>
+                    <th>Prix</th>
+                    <th>Quantité</th>               
+                    <th>Ajout Quantité</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var marProduct in selectedMerchant.MerchantProducts)
+                {
+                    Product product = allProduct.FirstOrDefault(p => p.Id == marProduct.ProductId);
+                    @if (product != null && product.CategoryId == selectedCategoryId)
+                    {
+                        Category cat = merchantCategories.FirstOrDefault(c => c.Id == selectedCategoryId);
+                        var taxeDescription = "";
+
+                        @if (cat.Tps)
+                        {
+                            taxeDescription += "TPS ";
+                        }
+
+                        @if (cat.Tvq)
+                        {
+                            taxeDescription += "TVQ";
+                        }
+
+                        <tr @key="product.Id">
+                            <td>@product.Name</td>
+                            <td>@product.PriceDefault</td>
+                            <td>@taxeDescription</td>
+                            <td>
+                                <textarea value="@marProduct.Price"
+                                          @onchange="e => UpdatePrice(product, e.Value?.ToString())">
+                                </textarea>
+                            </td>  
+
+                            <td>@marProduct.Stock</td>  
+                            <td>
+                                <textarea value=""
+                                          @onchange="e => UpdateQuantity(product, e.Value?.ToString())"
+                                          placeholder="Entrez la quantité à ajouter">
+                                </textarea>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </section>
+    <button @onclick="() => SaveChange()">Sauvegarder les changements</button>
+    <MessageDialog @ref="messageDialog" />
+}
+
+
+@code {
+    private Merchant selectedMerchant = new();
+    private List<Product> allProduct = new();
+    private ICollection<Category> merchantCategories;
+    private int selectedCategoryId = 0;
+    private MessageDialog? messageDialog;
+    private List<ProductModification> productModifications = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        selectedMerchant = MerchantState.SelectedMerchant;
+        allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products");
+        merchantCategories = selectedMerchant.Categories;
+
+        if (merchantCategories is not null && merchantCategories.Any())
+        {
+            selectedCategoryId = merchantCategories.First().Id;
+        }
+    }
+
+    private void UpdatePrice(Product product, string? newPriceString)
+    {
+        if (decimal.TryParse(newPriceString, out decimal newPrice))
+        {
+            var existingModification = productModifications.FirstOrDefault(pm => pm.ProductId == product.Id);
+            if (existingModification != null)
+            {
+                existingModification.NewPrice = newPrice;
+            }
+            else
+            {
+                productModifications.Add(new ProductModification
+                {
+                    ProductId = product.Id,
+                    NewPrice = newPrice
+                });
+            }
+        }
+    }
+
+    private void UpdateQuantity(Product product, string? newQuantityString)
+    {
+        if (int.TryParse(newQuantityString, out int newQuantity))
+        {
+            var existingModification = productModifications.FirstOrDefault(pm => pm.ProductId == product.Id);
+            if (existingModification != null)
+            {
+                existingModification.QuantityToAdd = newQuantity;
+            }
+            else
+            {
+                productModifications.Add(new ProductModification
+                {
+                    ProductId = product.Id,
+                    QuantityToAdd = newQuantity
+                });
+            }
+        }    
+    }
+
+    private async Task SaveChange()
+    {
+        foreach (var modification in productModifications)
+        {
+            await Http.PutAsJsonAsync($"api/MerchantProducts/{selectedMerchant.Id}", modification);
+        }
+        selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{selectedMerchant.Id}");
+        MerchantState.SelectedMerchant = selectedMerchant;
+        productModifications.Clear();
+        if (messageDialog is not null)
+        {
+            messageDialog.Title = "Sauvegarde réussie";
+            messageDialog.Message = "Les produits ont été sauvegardés avec succès!";
+
+            await messageDialog.ShowAsync();
+        }
+    }
+}
+
+

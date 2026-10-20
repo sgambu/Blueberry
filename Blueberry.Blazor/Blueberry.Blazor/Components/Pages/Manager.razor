@@ -1,0 +1,79 @@
+﻿@page "/manager"
+@inject HttpClient Http
+@inject SelectedMerchantState MerchantState
+@inject NavigationManager Navigation
+
+<h3>Manager</h3>
+<div class="pos-container">
+    <section class="products-panel">
+        <h3>Attention il ne reste plus de ces produits en stock!</h3>
+        @foreach (var category in categories)
+        {
+            @if (merchantProducts.Any(mp => allProducts.Any(p => p.Id == mp.ProductId && p.CategoryId == category.Id) && mp.Stock <= 0))
+            {
+                <p>@category.Name</p>
+                @foreach (var merProduct in merchantProducts)
+                {
+                    Product product = allProducts.FirstOrDefault(p => p.Id == merProduct.ProductId);
+
+                    @if (product != null && product.CategoryId == category.Id)
+                    {
+                        @if (merProduct.Stock <= 0)
+                        {
+
+                            <div style="color:red; margin-left:20px;">
+                                <p>@product.Name   Prix: @merProduct.Price.ToString("C")</p>
+                            </div>
+                        }
+                    }
+                }
+            }
+        }       
+        <h3>Attention il ne reste que peu de produits en stock!</h3>
+        @foreach (var category in categories)
+        {
+            @if (merchantProducts.Any(mp => allProducts.Any(p => p.Id == mp.ProductId && p.CategoryId == category.Id) && mp.Stock > 0 && mp.Stock < 6))
+            {
+                <p>@category.Name</p>
+                @foreach (var merProduct in merchantProducts)
+                {
+                    Product product = allProducts.FirstOrDefault(p => p.Id == merProduct.ProductId);
+
+                    @if (product != null && product.CategoryId == category.Id)
+                    {
+                        @if (merProduct.Stock > 0 && merProduct.Stock < 6)
+                        {
+                            <div style="color:cadetblue; margin-left:20px;">
+                                <p>@product.Name   Prix: @merProduct.Price.ToString("C")   Quantité en stock: @merProduct.Stock</p>
+                            </div>
+                        }
+                    }
+                }
+            }
+        }
+        <button @onclick="EditProduct">
+            Modifier les produits
+        </button>
+    </section>
+</div>
+
+
+
+@code {
+    private IEnumerable<Product>? allProducts;
+    private int quantityToAdd = 0;
+    private List<MerchantProduct> merchantProducts = new();
+    private List<Category> categories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products");
+        merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
+        categories = await Http.GetFromJsonAsync<List<Category>>("api/Categories");
+    }
+
+    private void EditProduct()
+    {
+        Navigation.NavigateTo("/edit-product");
+    }
+}

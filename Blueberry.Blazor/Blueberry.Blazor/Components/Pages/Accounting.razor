@@ -1,0 +1,168 @@
+﻿@page "/accounting"
+@attribute [StreamRendering]
+@inject HttpClient Http
+@inject SelectedMerchantState MerchantState
+
+<h3>Accounting</h3>
+<section class="form-section">
+    <button @onclick="GetTotalSalesByDay">Total des ventes par jours</button>
+    <button @onclick="TotalByProduct">Total des ventes de produits</button>
+    <button @onclick="TotalSalesByDay">TotalSalesByDay</button>
+</section>  
+
+<section class="form-section">
+    @if (showSalesByDay)
+    {
+        <section class="form-section">
+            <h3>Total des ventes par jour</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sale in salesByDay)
+                    {
+                        <tr>
+                            <td>@sale.DateSales</td>
+                            <td>@sale.Total</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+</section>
+
+<section class="form-section">
+    @if (showSalesByProduct)
+    {
+        <section class="form-section">
+            <h3>Quantité vendue par produit</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Quantité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sale in salesByProduct)
+                    {
+                        <tr>
+                            <td>@sale.Name</td>
+                            <td>@sale.Quantity</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+</section>
+
+@code {
+    private List<Sale> sales;
+    private List<SalesByDay> salesByDay = new();
+    private List<ProductByQuantity> salesByProduct = new();
+    private List<Product> allProduct = new();
+    private int merchantId;
+    private bool showSalesByDay = false;
+    private bool showSalesByProduct = false;
+    private bool showSalesByDaySummary = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        merchantId = MerchantState.SelectedMerchant.Id;
+        sales = await Http.GetFromJsonAsync<List<Sale>>($"api/Sales/{merchantId}");
+        allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products");
+    }
+
+    private void GetTotalSalesByDay()
+    {
+        showSalesByDay = true;
+        showSalesByProduct = false;
+        showSalesByDaySummary = false;
+
+        HashSet<string> activeDates = new HashSet<string>();
+
+        foreach (var sale in sales)
+        {
+            var date = sale.Date;
+            activeDates.Add(date.ToString("dd/MM/yyyy")); // ignore automatiquement les doublons
+
+        }
+
+        salesByDay = sales
+            .GroupBy(s => s.Date.ToString("dd/MM/yyyy"))
+            .Select(g => new SalesByDay
+            {
+                DateSales = g.Key,
+                Total = g.Sum(s => s.Total)
+            })
+            .ToList();
+    }
+
+    public class SalesByDay
+    {
+        public string DateSales { get; set; }
+        public decimal Total { get; set; }
+    }
+
+
+    private void TotalByProduct()
+    {
+        showSalesByDay = false;
+        showSalesByProduct = true;
+        showSalesByDaySummary = false;
+
+        salesByProduct = sales
+            .SelectMany(s => s.SaleItems)
+            .GroupBy(si => si.ProductId)
+            .Select(g => new ProductByQuantity
+            {
+                //ProductId = g.Key,
+                Name = allProduct.FirstOrDefault(p => p.Id == g.Key)?.Name,
+                Quantity = g.Sum(si => si.Quantity)
+            })
+            .ToList();
+    }
+
+    public class ProductByQuantity
+    {
+        public string Name { get; set; }
+        public int Quantity { get; set; }
+    }
+
+    private void TotalSalesByDay()
+    {
+        showSalesByDay = false;
+        showSalesByProduct = false;
+        showSalesByDaySummary = true;
+
+        /*Total des ventes, nombre de vente et d'item vendu pour un jour
+        Console.Write("Entrez une date (format: yyyy-MM-dd) : ");
+        string input = Console.ReadLine();
+
+        DateTime date;
+
+        while (!DateTime.TryParseExact(
+            input,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out date))
+        {
+            Console.Write("Format invalide. Réessayez (yyyy-MM-dd) : ");
+            input = Console.ReadLine();
+        }
+        var summary = saleService.GetDailySummary(date);
+        Console.WriteLine("Jour: {0,6:D}", date);
+        Console.WriteLine("Nombre de vente: " + summary.NumberOfSales + " Total des ventes: " + summary.TotalAmount + " nombre d'item vendu: " + summary.NumberOfItems);
+        Console.WriteLine();
+        }*/
+    }
+}

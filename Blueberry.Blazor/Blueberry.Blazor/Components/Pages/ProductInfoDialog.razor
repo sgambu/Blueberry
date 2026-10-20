@@ -1,0 +1,51 @@
+﻿
+@inject IJSRuntime JS
+
+<dialog @ref="dialog" class="product-dialog">
+
+    <h3>Catégories</h3>
+
+    @foreach (Category category in SelectedMerchant?.Categories)
+    {
+        string tps = @category.Tps ? "TPS" : "";
+        string tvq = @category.Tvq ? "TVQ" : "";
+
+        <h4>@category.Name @tps @tvq</h4>
+        <ul>
+            @foreach (MerchantProduct merProduct in SelectedMerchant ?.MerchantProducts)
+            {
+                int productId = merProduct.ProductId;
+                Product product = Products.FirstOrDefault(p => p.Id == productId);
+                @if (product != null && product.CategoryId == category.Id)
+                {
+                    <li>@product.Name - Prix : @product.PriceDefault $ - Prix de vente : @merProduct.Price - Stock : @merProduct.Stock</li>
+                }
+            }
+        </ul>
+    }
+
+    <button @onclick="CloseAsync">
+        Fermer
+    </button>
+
+</dialog>
+
+@code {
+    [Parameter]
+    public Merchant? SelectedMerchant { get; set; }
+
+    [Parameter]
+    public List<Product> Products { get; set; } = new();
+     
+    private ElementReference dialog;
+
+    public async Task ShowAsync()
+    {
+        await JS.InvokeVoidAsync("blueberryDialog.show", dialog);
+    }
+
+    private async Task CloseAsync()
+    {
+        await JS.InvokeVoidAsync("blueberryDialog.close", dialog);
+    }
+}

@@ -1,0 +1,227 @@
+﻿@page "/marchant-category/{id?}"
+@layout SelectionLayout
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject SelectedMerchantState MerchantState
+
+<h3>Modifier les catégories du marchand</h3>
+
+<div class="page-container">
+
+    <!-- Informations du marchand -->
+    <section class="form-section">
+        <h4>Informations sur le marchant</h4>
+
+        <div class="merchant-info">
+            <div>
+                <strong>Adresse :</strong>
+                <input type="text" @bind="selectedMerchant.Adresse" />
+            </div>
+
+            <div>
+                <strong>Téléphone :</strong>
+                <input type="text" @bind="selectedMerchant.Phone" />
+            </div>
+        </div>
+
+        <button @onclick="SaveMerchantChanges">
+            Sauvegarder les informations
+        </button>
+        @if (id is not null)
+        {
+            <ProductInfoDialog @ref="productInfoDialog"
+                               SelectedMerchant="@selectedMerchant"
+                               Products="@allProduct" />
+            <button @onclick="ShowProductInfo">
+                Informations sur les produits
+            </button>
+        }
+    </section>
+
+    @if (id is not null)
+    {
+        <!-- Catégorie et produits -->
+        <section class="form-section">
+            <h4>Catégories et produits</h4>
+
+            <div class="category-selection">
+                <label for="category">Catégorie :</label>
+                <select id="category" @bind="selectedCategoryId">
+                    @foreach (var category in allCategories)
+                    {
+                        <option value="@category.Id">
+                            @category.Name
+                        </option>
+                    }
+                </select>
+                @{
+                    Blueberry.EntityModels.Category cat = GetCategoryInfo();
+                }
+                <div>TPS @cat.Tps</div>
+                <div>TVQ @cat.Tvq</div>
+            </div>
+
+
+            <div class="products-section">
+                <h5>Produits dans la catégorie</h5>
+
+                <ul class="product-list">
+                    @foreach (var product in allProduct)
+                    {
+                        @if (product.CategoryId == selectedCategoryId)
+                        {
+                            <li>
+                                <label>
+                                    <input @key="@($"{selectedCategoryId}-{product.Id}")"
+                                    type="checkbox"
+                                    checked="@IsProductInMerchant(product.Id)"
+                                    @onchange="(e) => ProductSelectionChanged(product.Id, e)" />
+
+                                    @product.Name
+                                </label>
+                            </li>
+                        }
+                    }
+                </ul>
+            </div>
+
+            <button @onclick="SaveProductChanges">
+                Sauvegarder les produits
+            </button>
+            <MessageDialog @ref="messageDialog" />
+            <button @onclick="EditProduct">
+                Modifier les produits
+            </button>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? id { get; set; }
+
+    private int merchantId;
+
+    //private List<Category> categories = new();
+    private Merchant selectedMerchant = new();
+    private List<MerchantProduct> oriMerchantProducts = new();
+    private List<MerchantProduct> merchantProducts = new();
+    private List<Category> allCategories = new();
+    private List<MerchantProduct> allMerchantProducts = new();
+    private List<Product> allProduct = new();
+    private MessageDialog? messageDialog;
+
+    private int selectedCategoryId = 1;
+    //private bool productChange = false;
+    //private HashSet<int> selectedProductIds = new();
+    private ProductInfoDialog? productInfoDialog;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (id is not null)
+        {
+            merchantId = int.Parse(id);
+            selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchantId}");
+
+            /*categories =
+            await Http.GetFromJsonAsync<List<Category>>($"api/MerchantCategory/{merchantId}");*/
+
+                                    merchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchantId}");
+            oriMerchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchantId}");
+
+        }
+        allCategories = await Http.GetFromJsonAsync<List<Category>>("api/Categories");
+        allMerchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>("api/MerchantProducts");
+        allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products");
+
+        /*@foreach (var merchantProduct in allMerchantProducts)
+        {
+            if (merchantProduct.CategoryId == selectedCategoryId && merchantProduct.MerchantId == selectedMerchant.Id)
+            {
+                <div>@merchantProduct.ProductName</div>
+            }
+            }*/
+    }
+
+    private async Task SaveMerchantChanges()
+    {
+        // Implement the logic to save changes to the merchant
+        // This could involve sending a PUT or POST request to your API
+        // For example:
+        // await Http.PutAsJsonAsync($"api/Merchants/{selectedMerchant.Id}", selectedMerchant);
+
+        //new merchant
+        if (id is null)
+        {
+            HttpResponseMessage mer = await Http.PostAsJsonAsync("api/Merchants", selectedMerchant);
+        }
+        //edit marchant
+        else
+        {
+            await Http.PutAsJsonAsync($"api/Merchants/{selectedMerchant.Id}", selectedMerchant);
+        }
+        MerchantState.SelectedMerchant = selectedMerchant;
+    }
+    private async Task SaveProductChanges()
+    {
+        // Implement the logic to save changes to the products in the selected category
+        // This could involve sending a PUT or POST request to your API
+        foreach (MerchantProduct mer in merchantProducts)
+        {
+            if (!oriMerchantProducts.Any(d => d.MerchantId == mer.MerchantId && d.ProductId == mer.ProductId))
+            {
+                //Add the category if it does not exist
+                int catId = allProduct.FirstOrDefault(p => p.Id == mer.ProductId).CategoryId;
+
+                await Http.PostAsJsonAsync($"api/MerchantCategory/{mer.MerchantId}", catId);
+
+                await Http.PostAsJsonAsync("api/MerchantProducts", mer);
+            }    
+        }
+        selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchantId}");//refresh categories and Merchantproduct
+        MerchantState.SelectedMerchant = selectedMerchant;
+        oriMerchantProducts = merchantProducts;
+        if (messageDialog is not null)
+        {
+            messageDialog.Title = "Sauvegarde réussie";
+            messageDialog.Message = "Les produits ont été sauvegardés avec succès!";
+
+            await messageDialog.ShowAsync();
+        }      
+    }
+
+    private void ProductSelectionChanged(int productId, ChangeEventArgs e)
+    {
+        bool isChecked = (bool)e.Value!;
+
+        if (isChecked)
+        {
+            Product p = allProduct.FirstOrDefault(d => d.Id == productId);
+            decimal defaultPrice = p.PriceDefault;
+            merchantProducts.Add(new MerchantProduct { ProductId = productId, MerchantId = selectedMerchant.Id, Price = defaultPrice, Stock = 0 });
+        }
+        else
+        {
+            merchantProducts.Remove(merchantProducts.FirstOrDefault(mp => mp.ProductId == productId && mp.MerchantId == selectedMerchant.Id));
+        }
+    }
+    private Category GetCategoryInfo()
+    {
+        return allCategories.FirstOrDefault(c => c.Id == selectedCategoryId) ?? new Category();
+    }
+
+    private bool IsProductInMerchant(int productId)
+    {
+        return merchantProducts.Any(mp =>mp.ProductId == productId && mp.MerchantId == selectedMerchant.Id);
+    }   
+
+    private async Task ShowProductInfo()
+    {
+        if (productInfoDialog is not null)
+            await productInfoDialog.ShowAsync();
+    }
+    private void EditProduct()
+    {
+        Navigation.NavigateTo("/edit-product");
+    }
+}

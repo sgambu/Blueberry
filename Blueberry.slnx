@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Éléments de solution/">
+    <File Path=".gitignore" />
+  </Folder>
+  <Project Path="Blueberry.Blazor/Blueberry.Blazor.Client/Blueberry.Blazor.Client.csproj" Id="a49f9b45-750f-403a-aba1-a60eb2ab26b6" />
+  <Project Path="Blueberry.Blazor/Blueberry.Blazor/Blueberry.Blazor.csproj" Id="43abda1c-a829-4ac4-97e3-35ffe0d683bc" />
+  <Project Path="Blueberry.DataContext.SqlServer/Blueberry.DataContext.SqlServer.csproj" Id="20e9315d-f6bb-4c8d-ab79-206e02b9f580" />
+  <Project Path="Blueberry.EntityModels.SqlServer/Blueberry.EntityModels.SqlServer.csproj" />
+  <Project Path="Blueberry.WebApi/Blueberry.WebApi.csproj" Id="f40af868-f188-4e3c-befc-0f0831a33c89" />
+</Solution>

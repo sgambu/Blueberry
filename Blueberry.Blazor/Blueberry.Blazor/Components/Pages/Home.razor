@@ -1,0 +1,79 @@
+﻿@page "/"
+@layout SelectionLayout
+@inject HttpClient Http
+@inject SelectedMerchantState MerchantState
+@inject NavigationManager Navigation
+
+<div class="pos-container">
+    <h3>Choisir un magasin</h3>
+     <section class="marchands-panel">
+        @* Liste des magasins ici *@
+        @if (merchants is null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+
+            <table>
+                <tbody>
+                   @foreach (Merchant merchant in merchants)
+                   {
+                         <tr>
+                            <th><button @onclick="() => SelectMerchant(merchant)">
+                                <span>@(merchant.Adresse)</span>
+                                <span>@(merchant.Phone)</span>
+                                </button>
+                            </th>
+                            @*Modified merchants info and categories*@
+                            <th>
+                                <button @onclick="() => ModifyMerchant(merchant)">Modifié</button>
+                            </th>
+                        </tr>
+                   }
+                </tbody>
+            </table>
+           
+        }      
+    </section>
+
+    <section class="add-marchands-panel">
+        @*Add a new merchant*@
+        <button @onclick="() => AddMerchant()">Ajouter un magasin</button>
+    </section>
+</div>
+
+@code {
+    private List<Merchant> merchants = new List<Merchant>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        merchants = await Http.GetFromJsonAsync<List<Merchant>>("api/Merchants"); 
+    }
+
+    private void SelectMerchant(Merchant merchant)
+    {
+        merchant.Adresse = merchant.Adresse ?? "Adresse non disponible";
+        MerchantState.SelectedMerchant = merchant;
+
+        var merchantProducts = Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProduct/{merchant.Id}"); //.Result;
+
+        if (merchantProducts == null)
+        {
+            ModifyMerchant(merchant);
+        }
+        else
+        {
+            Navigation.NavigateTo("/store");
+        }
+    }
+    private void AddMerchant()
+    {
+        Navigation.NavigateTo("/marchant-category");
+    }
+    private void ModifyMerchant(Merchant merchant)
+    {
+        MerchantState.SelectedMerchant = merchant;
+        Navigation.NavigateTo($"/marchant-category/{merchant.Id}");
+    }
+}

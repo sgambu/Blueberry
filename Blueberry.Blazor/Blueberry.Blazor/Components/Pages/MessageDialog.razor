@@ -1,0 +1,36 @@
+﻿@inject IJSRuntime JS
+
+<dialog @ref="dialog" class="message-dialog">
+
+    <h3>@Title</h3>
+
+    <p>@Message</p>
+
+    <button @onclick="CloseAsync">
+        OK
+    </button>
+
+</dialog>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Information";
+
+    [Parameter]
+    public string Message { get; set; } = "";
+
+    private ElementReference dialog;
+
+    public async Task ShowAsync()
+    {
+        StateHasChanged();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("blueberryDialog.show", dialog);
+    }
+
+    private async Task CloseAsync()
+    {
+        await JS.InvokeVoidAsync("blueberryDialog.close", dialog);
+    }
+
+}
