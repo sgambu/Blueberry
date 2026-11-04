@@ -7,8 +7,8 @@
   </PropertyGroup>
 
 <ItemGroup>
-  <PackageReference Version="10.0.12" Include="Microsoft.EntityFrameworkCore.SqlServer" />
-  <ProjectReference Include="..\Blueberry.EntityModels.SqlServer\Blueberry.EntityModels.SqlServer.csproj"/>
+  <PackageReference Version="10.0.14" Include="Microsoft.EntityFrameworkCore.SqlServer" />
+  <ProjectReference Include="..\Blueberry.EntityModels.SqlServer\Blueberry.EntityModels.SqlServer.csproj" />
 </ItemGroup>
 
 </Project>

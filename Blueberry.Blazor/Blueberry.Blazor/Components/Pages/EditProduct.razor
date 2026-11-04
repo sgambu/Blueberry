@@ -1,8 +1,21 @@
-﻿@page "/edit-product"
+@page "/edit-product"
+@layout SelectionLayout
 @inject HttpClient Http
+@inject NavigationManager Navigation
 @inject SelectedMerchantState MerchantState
 
-<h3>Modifier le produit</h3>
+<div class="page-container">
+    <header class="page-header">
+        <div class="header-content">
+            <div class="header-left">
+                <button class="btn-back" @onclick="GoBackToManager" title="Retour à la gestion des stocks">
+                    <span class="back-arrow">←</span> Retour au Manager
+                </button>
+                <h2 class="page-title">Modifier les produits</h2>
+                <p class="page-subtitle">Ajustez les prix et réapprovisionnez les stocks du magasin</p>
+            </div>
+        </div>
+    </header>
 
 @if (allProduct is null)
 {
@@ -85,26 +98,47 @@ else
     </section>
     <button @onclick="() => SaveChange()">Sauvegarder les changements</button>
     <MessageDialog @ref="messageDialog" />
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span class="alert-icon">⚠️</span>
+            <div><strong>Attention :</strong> @errorMessage</div>
+            <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
 }
-
+</div>
 
 @code {
+    private void GoBackToManager()
+    {
+        Navigation.NavigateTo("/manager");
+    }
+
     private Merchant selectedMerchant = new();
     private List<Product> allProduct = new();
     private ICollection<Category> merchantCategories;
     private int selectedCategoryId = 0;
     private MessageDialog? messageDialog;
     private List<ProductModification> productModifications = new();
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        selectedMerchant = MerchantState.SelectedMerchant;
-        allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products");
-        merchantCategories = selectedMerchant.Categories;
-
-        if (merchantCategories is not null && merchantCategories.Any())
+        try
         {
-            selectedCategoryId = merchantCategories.First().Id;
+            selectedMerchant = MerchantState.SelectedMerchant;
+            allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
+            merchantCategories = selectedMerchant.Categories;
+
+            if (merchantCategories is not null && merchantCategories.Any())
+            {
+                selectedCategoryId = merchantCategories.First().Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Impossible de charger les données : {ex.Message}";
         }
     }
 
@@ -150,19 +184,30 @@ else
 
     private async Task SaveChange()
     {
-        foreach (var modification in productModifications)
+        try
         {
-            await Http.PutAsJsonAsync($"api/MerchantProducts/{selectedMerchant.Id}", modification);
-        }
-        selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{selectedMerchant.Id}");
-        MerchantState.SelectedMerchant = selectedMerchant;
-        productModifications.Clear();
-        if (messageDialog is not null)
-        {
-            messageDialog.Title = "Sauvegarde réussie";
-            messageDialog.Message = "Les produits ont été sauvegardés avec succès!";
+            foreach (var modification in productModifications)
+            {
+                HttpResponseMessage response = await Http.PutAsJsonAsync($"api/MerchantProducts/{selectedMerchant.Id}", modification);
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"Erreur lors de la mise à jour du produit avec l'ID {modification.ProductId}. Statut : {response.StatusCode}");
+                }
+            }
+            selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{selectedMerchant.Id}") ?? new();
+            MerchantState.SelectedMerchant = selectedMerchant;
+            productModifications.Clear();
+            if (messageDialog is not null)
+            {
+                messageDialog.Title = "Sauvegarde réussie";
+                messageDialog.Message = "Les produits ont été sauvegardés avec succès!";
 
-            await messageDialog.ShowAsync();
+                await messageDialog.ShowAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite : {ex.Message}";
         }
     }
 }

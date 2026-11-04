@@ -1,79 +1,227 @@
-﻿@page "/"
+@page "/"
 @layout SelectionLayout
 @inject HttpClient Http
 @inject SelectedMerchantState MerchantState
 @inject NavigationManager Navigation
 
-<div class="pos-container">
-    <h3>Choisir un magasin</h3>
-     <section class="marchands-panel">
-        @* Liste des magasins ici *@
-        @if (merchants is null)
+<div class="home-page">
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span class="alert-icon">⚠️</span>
+            <div><strong>Attention :</strong> @errorMessage</div>
+            <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    <!-- Section d'affichage des magasins -->
+    <section class="stores-section">
+        <div class="stores-header-bar">
+            <div class="stores-header-left">
+                <div class="stores-title-group">
+                    <h2 class="stores-title">Choisir un magasin</h2>
+                    @if (merchants != null && !isLoading)
+                    {
+                        <span class="stores-count-badge">@(merchants.Count) @(merchants.Count == 1 ? "magasin" : "magasins")</span>
+                    }
+                </div>
+                <p class="stores-subtitle">Sélectionnez un point de vente pour accéder à la caisse ou administrer son catalogue.</p>
+            </div>
+
+            <div class="stores-actions-group">
+                <button class="btn-add-store" @onclick="AddMerchant" title="Créer un nouveau magasin">
+                    <span class="btn-icon">＋</span> Ajouter un magasin
+                </button>
+                <button class="btn-manage-categories" @onclick="ManageCategories" title="Gérer les catégories globales">
+                    <span class="btn-icon">📁</span> Gérer les catégories
+                </button>
+            </div>
+        </div>
+
+        @if (isLoading)
         {
-            <p><em>Loading...</em></p>
+            <div class="stores-loading-state">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+                <p class="mt-3 text-muted">Chargement des magasins en cours...</p>
+            </div>
+        }
+        else if (merchants == null || merchants.Count == 0)
+        {
+            <div class="stores-empty-state">
+                <span class="empty-state-icon">🏪</span>
+                <h3 class="empty-state-title">Aucun magasin configuré</h3>
+                <p class="empty-state-text">Vous n'avez pas encore créé de point de vente. Commencez dès maintenant en ajoutant votre premier magasin.</p>
+                <button class="btn-add-store" @onclick="AddMerchant">
+                    <span class="btn-icon">＋</span> Créer mon premier magasin
+                </button>
+            </div>
         }
         else
         {
+            @if (merchants.Count > 1)
+            {
+                <div class="stores-search-row">
+                    <div class="stores-search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text"
+                               placeholder="Filtrer par adresse, téléphone ou ID..."
+                               @bind="searchTerm"
+                               @bind:event="oninput" />
+                        @if (!string.IsNullOrWhiteSpace(searchTerm))
+                        {
+                            <button class="btn-clear-search" @onclick="() => searchTerm = string.Empty" title="Effacer la recherche">✕</button>
+                        }
+                    </div>
+                </div>
+            }
 
-            <table>
-                <tbody>
-                   @foreach (Merchant merchant in merchants)
-                   {
-                         <tr>
-                            <th><button @onclick="() => SelectMerchant(merchant)">
-                                <span>@(merchant.Adresse)</span>
-                                <span>@(merchant.Phone)</span>
-                                </button>
-                            </th>
-                            @*Modified merchants info and categories*@
-                            <th>
-                                <button @onclick="() => ModifyMerchant(merchant)">Modifié</button>
-                            </th>
-                        </tr>
-                   }
-                </tbody>
-            </table>
-           
-        }      
-    </section>
+            <div class="stores-grid">
+                @foreach (Merchant merchant in FilteredMerchants)
+                {
+                    <div class="store-card" @onclick="() => SelectMerchant(merchant)" style="cursor: pointer;">
+                        <div class="store-card-header">
+                            <div class="store-badge-group">
+                                <div class="store-avatar-icon">
+                                    🏪
+                                </div>
+                                <div class="store-number-title">
+                                    <h4 class="store-card-title">Magasin #@merchant.Id</h4>
+                                    <span class="store-id-subtitle">Point de vente</span>
+                                </div>
+                            </div>
+                            <span class="store-status-pill">
+                                <span class="store-status-dot"></span> Actif
+                            </span>
+                        </div>
 
-    <section class="add-marchands-panel">
-        @*Add a new merchant*@
-        <button @onclick="() => AddMerchant()">Ajouter un magasin</button>
+                        <div class="store-card-body">
+                            <div class="store-info-item">
+                                <span class="store-info-icon">📍</span>
+                                <div class="store-info-content">
+                                    <span class="store-info-label">Adresse</span>
+                                    <span class="store-info-value">@(string.IsNullOrWhiteSpace(merchant.Adresse) ? "Adresse non disponible" : merchant.Adresse)</span>
+                                </div>
+                            </div>
+
+                            <div class="store-info-item">
+                                <span class="store-info-icon">📞</span>
+                                <div class="store-info-content">
+                                    <span class="store-info-label">Téléphone</span>
+                                    <span class="store-info-value">@(string.IsNullOrWhiteSpace(merchant.Phone) ? "Non renseigné" : merchant.Phone)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="store-card-actions">
+                            <button class="btn-card-select"
+                                    @onclick="() => SelectMerchant(merchant)"
+                                    @onclick:stopPropagation="true"
+                                    title="Ouvrir ce magasin">
+                                Entrer dans le magasin <span>→</span>
+                            </button>
+                            <button class="btn-card-modify"
+                                    @onclick="() => ModifyMerchant(merchant)"
+                                    @onclick:stopPropagation="true"
+                                    title="Modifier ce magasin et ses produits">
+                                <span>✏️</span> Modifier
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (!FilteredMerchants.Any())
+            {
+                <div class="stores-empty-state" style="margin-top: 1.5rem; padding: 2.5rem 1.5rem;">
+                    <span class="empty-state-icon">🔎</span>
+                    <h3 class="empty-state-title">Aucun résultat trouvé</h3>
+                    <p class="empty-state-text">Aucun magasin ne correspond à votre recherche "<strong>@searchTerm</strong>".</p>
+                    <button class="btn-manage-categories" @onclick="() => searchTerm = string.Empty">
+                        Réinitialiser la recherche
+                    </button>
+                </div>
+            }
+        }
     </section>
 </div>
 
 @code {
     private List<Merchant> merchants = new List<Merchant>();
+    private string? errorMessage;
+    private bool isLoading = true;
+    private string searchTerm = string.Empty;
+
+    private IEnumerable<Merchant> FilteredMerchants
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+                return merchants;
+
+            return merchants.Where(m =>
+                (m.Adresse?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (m.Phone?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                m.Id.ToString().Contains(searchTerm));
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        merchants = await Http.GetFromJsonAsync<List<Merchant>>("api/Merchants"); 
+        errorMessage = null;
+        isLoading = true;
+        try
+        {
+            merchants = await Http.GetFromJsonAsync<List<Merchant>>("api/Merchants") ?? new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Impossible de charger les données : {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    private void SelectMerchant(Merchant merchant)
+    private async Task SelectMerchant(Merchant merchant)
     {
         merchant.Adresse = merchant.Adresse ?? "Adresse non disponible";
         MerchantState.SelectedMerchant = merchant;
 
-        var merchantProducts = Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProduct/{merchant.Id}"); //.Result;
-
-        if (merchantProducts == null)
+        try
         {
-            ModifyMerchant(merchant);
+            var merchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchant.Id}");
+
+            if (merchantProducts == null || merchantProducts.Count == 0)
+            {
+                ModifyMerchant(merchant);
+            }
+            else
+            {
+                Navigation.NavigateTo("/store");
+            }
         }
-        else
+        catch
         {
             Navigation.NavigateTo("/store");
         }
     }
+
     private void AddMerchant()
     {
         Navigation.NavigateTo("/marchant-category");
     }
+
     private void ModifyMerchant(Merchant merchant)
     {
         MerchantState.SelectedMerchant = merchant;
         Navigation.NavigateTo($"/marchant-category/{merchant.Id}");
+    }
+
+    private void ManageCategories()
+    {
+        Navigation.NavigateTo("/categories");
     }
 }

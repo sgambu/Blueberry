@@ -32,6 +32,7 @@ try
     app.MapProductEndpoints();
     app.MapSaleEndpoints();
     app.MapMerchantEndpoints();
+    app.MapCategoryEndpoints();
 
     app.Run();
 }

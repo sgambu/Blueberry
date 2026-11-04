@@ -1,6 +1,66 @@
-﻿@page "/store"
-<h3>Store</h3>
+@page "/store"
+@inject SelectedMerchantState MerchantState
+@inject NavigationManager Navigation
+
+<div class="store-dashboard-page">
+    @if (CurrentMerchant != null)
+    {
+        <div class="store-dashboard-welcome">
+            <h2 class="welcome-heading">Bienvenue au Magasin #@CurrentMerchant.Id</h2>
+            <p class="welcome-desc">Sélectionnez un module pour opérer ce point de vente :</p>
+        </div>
+
+        <div class="store-modules-grid">
+            <div class="store-module-card" @onclick="@(() => Navigation.NavigateTo("/products"))" style="cursor: pointer;">
+                <div class="module-card-icon pos-accent">🛒</div>
+                <div class="module-card-content">
+                    <h3 class="module-card-title">Caisse Enregistreuse</h3>
+                    <p class="module-card-desc">Encaisser des ventes, sélectionner des articles et calculer taxes et totaux.</p>
+                </div>
+                <span class="module-card-arrow">→</span>
+            </div>
+
+            <div class="store-module-card" @onclick="@(() => Navigation.NavigateTo("/manager"))" style="cursor: pointer;">
+                <div class="module-card-icon inventory-accent">📦</div>
+                <div class="module-card-content">
+                    <h3 class="module-card-title">Gestionnaire de Stock</h3>
+                    <p class="module-card-desc">Vérifier l'inventaire en temps réel, alertes de rupture et ajustement de stock.</p>
+                </div>
+                <span class="module-card-arrow">→</span>
+            </div>
+
+            <div class="store-module-card" @onclick="@(() => Navigation.NavigateTo("/accounting"))" style="cursor: pointer;">
+                <div class="module-card-icon accounting-accent">📊</div>
+                <div class="module-card-content">
+                    <h3 class="module-card-title">Comptabilité & Rapports</h3>
+                    <p class="module-card-desc">Visualiser le chiffre d'affaires par jour et l'historique complet des ventes.</p>
+                </div>
+                <span class="module-card-arrow">→</span>
+            </div>
+
+            <div class="store-module-card" @onclick="@(() => Navigation.NavigateTo($"/marchant-category/{CurrentMerchant.Id}"))" style="cursor: pointer;">
+                <div class="module-card-icon settings-accent">⚙️</div>
+                <div class="module-card-content">
+                    <h3 class="module-card-title">Configuration du Magasin</h3>
+                    <p class="module-card-desc">Modifier les coordonnées, assigner des catégories et produits disponibles.</p>
+                </div>
+                <span class="module-card-arrow">→</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="store-no-merchant">
+            <div class="no-merchant-icon">🏪</div>
+            <h3>Aucun magasin sélectionné</h3>
+            <p>Veuillez sélectionner un point de vente depuis la page d'accueil pour accéder aux modules.</p>
+            <button class="btn-add-store" @onclick="@(() => Navigation.NavigateTo("/"))">
+                Choisir un magasin
+            </button>
+        </div>
+    }
+</div>
 
 @code {
-
+    private Merchant? CurrentMerchant => MerchantState?.SelectedMerchant;
 }

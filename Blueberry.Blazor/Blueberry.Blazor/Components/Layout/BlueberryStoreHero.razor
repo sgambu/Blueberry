@@ -1,0 +1,74 @@
+@inject SelectedMerchantState MerchantState
+@inject NavigationManager Navigation
+
+<header class="store-hero">
+    <div class="store-hero-content">
+        <!-- 1. Les trois images à gauche -->
+        <div class="store-hero-images">
+            <a href="/" class="store-hero-img-card" title="Bleuets frais du Québec - Retour à l'accueil">
+                <img src="/Images/19e0dcae-314c-4fa7-a301-451022f69284.jpg" alt="Blueberry 1" />
+            </a>
+            <a href="/" class="store-hero-img-card" title="Bleuets de saison - Retour à l'accueil">
+                <img src="/Images/2209.i605.009.F.m005.c9.realistic blueberry.jpg" alt="Blueberry 2" />
+            </a>
+            <a href="/" class="store-hero-img-card" title="Bilberry & Nature - Retour à l'accueil">
+                <img src="/Images/word-bilberry-diet-white-green.jpg" alt="Blueberry 3" />
+            </a>
+        </div>
+
+        <!-- 2. Section centrale : Informations du Magasin sélectionné -->
+        <div class="store-hero-center">
+            @if (CurrentMerchant != null)
+            {
+                <div class="store-active-badge">
+                    <span class="store-pulse-dot"></span> Point de vente actif
+                </div>
+                <div class="store-title-row">
+                    <h2 class="store-active-title">Magasin #@CurrentMerchant.Id</h2>
+                    <span class="store-status-tag">En opération</span>
+                </div>
+                <div class="store-active-details">
+                    <span class="store-detail-pill">
+                        <span class="detail-icon">📍</span>
+                        @(string.IsNullOrWhiteSpace(CurrentMerchant.Adresse) ? "Adresse non disponible" : CurrentMerchant.Adresse)
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(CurrentMerchant.Phone))
+                    {
+                        <span class="store-detail-pill">
+                            <span class="detail-icon">📞</span>
+                            @CurrentMerchant.Phone
+                        </span>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="store-warning-badge">
+                    ⚠️ Aucun magasin actif
+                </div>
+                <h2 class="store-active-title">Sélection requise</h2>
+                <p class="store-warning-text">Veuillez sélectionner un point de vente pour enregistrer des ventes ou gérer les stocks.</p>
+            }
+        </div>
+
+        <!-- 3. Section droite : Marque Blueberry et Bouton Changer de Magasin -->
+        <div class="store-hero-right">
+            <a href="/" class="store-brand-link" title="Retour à l'accueil">
+                <span class="store-brand-badge">Mode Magasin</span>
+                <h1 class="store-brand-title">Blueberry</h1>
+            </a>
+            <button class="btn-switch-store" @onclick="GoToStoreSelection" title="Changer de point de vente">
+                <span class="switch-icon">⇄</span> Changer de magasin
+            </button>
+        </div>
+    </div>
+</header>
+
+@code {
+    private Merchant? CurrentMerchant => MerchantState?.SelectedMerchant;
+
+    private void GoToStoreSelection()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

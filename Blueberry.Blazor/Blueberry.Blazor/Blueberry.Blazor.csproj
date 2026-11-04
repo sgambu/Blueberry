@@ -11,7 +11,7 @@
     <ProjectReference Include="..\..\Blueberry.DataContext.SqlServer\Blueberry.DataContext.SqlServer.csproj" />
     <ProjectReference Include="..\..\Blueberry.EntityModels.SqlServer\Blueberry.EntityModels.SqlServer.csproj" />
     <ProjectReference Include="..\Blueberry.Blazor.Client\Blueberry.Blazor.Client.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.14" />
   </ItemGroup>
 
 </Project>

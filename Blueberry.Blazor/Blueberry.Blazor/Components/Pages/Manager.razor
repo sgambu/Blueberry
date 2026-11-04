@@ -54,6 +54,14 @@
         <button @onclick="EditProduct">
             Modifier les produits
         </button>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <span class="alert-icon">⚠️</span>
+                <div><strong>Attention :</strong> @errorMessage</div>
+                <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
     </section>
 </div>
 
@@ -64,12 +72,20 @@
     private int quantityToAdd = 0;
     private List<MerchantProduct> merchantProducts = new();
     private List<Category> categories = new();
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products");
-        merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
-        categories = await Http.GetFromJsonAsync<List<Category>>("api/Categories");
+        try
+        {
+            allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products");
+            merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
+            categories = await Http.GetFromJsonAsync<List<Category>>("api/Categories") ?? new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Impossible de charger les données : {ex.Message}";
+        }
     }
 
     private void EditProduct()

@@ -34,6 +34,17 @@ static partial class Program
             await db.SaveChangesAsync();
             return Results.NoContent();
         });
+        app.MapDelete("/api/Products/{id}", async (int id, BlueberryContext db) =>
+        {
+            var product = await db.Products.FindAsync(id);
+            if (product == null)
+            {
+                return Results.NotFound();
+            }
+            db.Products.Remove(product);
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
     }
 
 }

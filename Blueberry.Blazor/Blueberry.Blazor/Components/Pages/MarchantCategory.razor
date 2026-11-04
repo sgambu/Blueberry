@@ -1,16 +1,22 @@
-﻿@page "/marchant-category/{id?}"
+@page "/marchant-category/{id?}"
 @layout SelectionLayout
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject SelectedMerchantState MerchantState
-
-<h3>Modifier les catégories du marchand</h3>
-
 <div class="page-container">
-
+    <header class="page-header">
+        <div class="header-content">
+            <div class="header-left">
+                <button class="btn-back" @onclick="GoToHome" title="Retour à la liste des magasins">
+                    <span class="back-arrow">←</span> Retour aux magasins
+                </button>
+                <h2 class="page-title">Informations sur le marchant</h2>
+                <p class="page-subtitle">Ajoutez ou modifiez les informations du marchand</p>
+            </div>
+        </div>
+    </header>
     <!-- Informations du marchand -->
     <section class="form-section">
-        <h4>Informations sur le marchant</h4>
 
         <div class="merchant-info">
             <div>
@@ -38,7 +44,7 @@
         }
     </section>
 
-    @if (id is not null)
+    @if (merchantId != 0)
     {
         <!-- Catégorie et produits -->
         <section class="form-section">
@@ -88,11 +94,20 @@
             <button @onclick="SaveProductChanges">
                 Sauvegarder les produits
             </button>
-            <MessageDialog @ref="messageDialog" />
+
             <button @onclick="EditProduct">
                 Modifier les produits
             </button>
         </section>
+    }
+    <MessageDialog @ref="messageDialog" />
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span class="alert-icon">⚠️</span>
+            <div><strong>Attention :</strong> @errorMessage</div>
+            <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
+        </div>
     }
 </div>
 
@@ -110,6 +125,7 @@
     private List<MerchantProduct> allMerchantProducts = new();
     private List<Product> allProduct = new();
     private MessageDialog? messageDialog;
+    private string? errorMessage;
 
     private int selectedCategoryId = 1;
     //private bool productChange = false;
@@ -118,29 +134,26 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (id is not null)
+        try
         {
-            merchantId = int.Parse(id);
-            selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchantId}");
-
-            /*categories =
-            await Http.GetFromJsonAsync<List<Category>>($"api/MerchantCategory/{merchantId}");*/
-
-                                    merchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchantId}");
-            oriMerchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchantId}");
-
-        }
-        allCategories = await Http.GetFromJsonAsync<List<Category>>("api/Categories");
-        allMerchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>("api/MerchantProducts");
-        allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products");
-
-        /*@foreach (var merchantProduct in allMerchantProducts)
-        {
-            if (merchantProduct.CategoryId == selectedCategoryId && merchantProduct.MerchantId == selectedMerchant.Id)
+            if (id is not null)
             {
-                <div>@merchantProduct.ProductName</div>
+                merchantId = int.Parse(id);
+                selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchantId}") ?? new();
+
+                merchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchantId}") ?? new();
+                oriMerchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchantId}") ?? new();
+
             }
-            }*/
+            allCategories = await Http.GetFromJsonAsync<List<Category>>("api/Categories") ?? new();
+            allMerchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>("api/MerchantProducts") ?? new();
+            allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Impossible de charger les données : {ex.Message}";
+        }
+
     }
 
     private async Task SaveMerchantChanges()
@@ -151,43 +164,101 @@
         // await Http.PutAsJsonAsync($"api/Merchants/{selectedMerchant.Id}", selectedMerchant);
 
         //new merchant
-        if (id is null)
+        try
         {
-            HttpResponseMessage mer = await Http.PostAsJsonAsync("api/Merchants", selectedMerchant);
+            if (id is null)
+            {
+                HttpResponseMessage mer = await Http.PostAsJsonAsync("api/Merchants", selectedMerchant);
+
+                HttpResponseMessage response = await Http.PostAsJsonAsync("api/Merchants", selectedMerchant);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    selectedMerchant = await response.Content.ReadFromJsonAsync<Merchant>() ?? new();
+                    merchantId = selectedMerchant.Id;
+                    if (messageDialog is not null)
+                    {
+                        messageDialog.Title = "Création réussie";
+                        messageDialog.Message = "Un nouveau commerçant a été créé avec succès!";
+
+                        await messageDialog.ShowAsync();
+                    }
+                }
+                else
+                {
+                    var msg = await response.Content.ReadAsStringAsync();
+                    errorMessage = $"Erreur lors de la création d'un nouveau commerçant : {msg}";
+                }
+            }
+            //edit marchant
+            else
+            {
+                HttpResponseMessage response = await Http.PutAsJsonAsync($"api/Merchants/{selectedMerchant.Id}", selectedMerchant);
+                if (response.IsSuccessStatusCode)
+                {
+                    if (messageDialog is not null)
+                    {
+                        messageDialog.Title = "Sauvegarde réussie";
+                        messageDialog.Message = "Le commerçant a été mis à jour avec succès!";
+
+                        await messageDialog.ShowAsync();
+                    }
+                }
+                else
+                {
+                    var msg = await response.Content.ReadAsStringAsync();
+                    errorMessage = $"Erreur lors de la modification du commerçant : {msg}";
+                }
+            }
+            MerchantState.SelectedMerchant = selectedMerchant;
         }
-        //edit marchant
-        else
+        catch (Exception ex)
         {
-            await Http.PutAsJsonAsync($"api/Merchants/{selectedMerchant.Id}", selectedMerchant);
+            errorMessage = $"Une erreur s'est produite : {ex.Message}";
         }
-        MerchantState.SelectedMerchant = selectedMerchant;
     }
     private async Task SaveProductChanges()
     {
         // Implement the logic to save changes to the products in the selected category
         // This could involve sending a PUT or POST request to your API
-        foreach (MerchantProduct mer in merchantProducts)
+        try
         {
-            if (!oriMerchantProducts.Any(d => d.MerchantId == mer.MerchantId && d.ProductId == mer.ProductId))
+            foreach (MerchantProduct mer in merchantProducts)
             {
-                //Add the category if it does not exist
-                int catId = allProduct.FirstOrDefault(p => p.Id == mer.ProductId).CategoryId;
+                if (!oriMerchantProducts.Any(d => d.MerchantId == mer.MerchantId && d.ProductId == mer.ProductId))
+                {
+                    //Add the category if it does not exist
+                    int catId = allProduct.FirstOrDefault(p => p.Id == mer.ProductId).CategoryId;
 
-                await Http.PostAsJsonAsync($"api/MerchantCategory/{mer.MerchantId}", catId);
+                    HttpResponseMessage response = await Http.PostAsJsonAsync($"api/MerchantCategory/{mer.MerchantId}", catId);
+                    HttpResponseMessage response2 = await Http.PostAsJsonAsync("api/MerchantProducts", mer);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var msg = await response.Content.ReadAsStringAsync();
+                        errorMessage = $"Erreur lors de l'ajout de la catégorie pour le commerçant : {msg}";
+                    }
+                    if (!response2.IsSuccessStatusCode)
+                    {
+                        var msg = await response2.Content.ReadAsStringAsync();
+                        errorMessage = $"Erreur lors de l'ajout du produit pour le commerçant : {msg}";
+                    }
+                }    
+            }
+            selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchantId}");//refresh categories and Merchantproduct
+            MerchantState.SelectedMerchant = selectedMerchant;
+            oriMerchantProducts = merchantProducts;
+            if (messageDialog is not null)
+            {
+                messageDialog.Title = "Sauvegarde réussie";
+                messageDialog.Message = "Les produits ont été sauvegardés avec succès!";
 
-                await Http.PostAsJsonAsync("api/MerchantProducts", mer);
+                await messageDialog.ShowAsync();
             }    
         }
-        selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchantId}");//refresh categories and Merchantproduct
-        MerchantState.SelectedMerchant = selectedMerchant;
-        oriMerchantProducts = merchantProducts;
-        if (messageDialog is not null)
+        catch (Exception ex)
         {
-            messageDialog.Title = "Sauvegarde réussie";
-            messageDialog.Message = "Les produits ont été sauvegardés avec succès!";
-
-            await messageDialog.ShowAsync();
-        }      
+            errorMessage = $"Une erreur s'est produite : {ex.Message}";
+        }
     }
 
     private void ProductSelectionChanged(int productId, ChangeEventArgs e)
@@ -223,5 +294,9 @@
     private void EditProduct()
     {
         Navigation.NavigateTo("/edit-product");
+    }
+    private void GoToHome()
+    {
+        Navigation.NavigateTo("/");
     }
 }

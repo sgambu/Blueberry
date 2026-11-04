@@ -1,4 +1,4 @@
-﻿using Blueberry.DataContext.SqlServer;
+using Blueberry.DataContext.SqlServer;
 using Blueberry.EntityModels;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -161,11 +161,6 @@ static partial class Program
                 
             await db.SaveChangesAsync();
             return Results.Ok();
-        });
-
-        app.MapGet("/api/Categories", async (BlueberryContext db) =>
-        {
-                return await db.Categories.ToArrayAsync();
         });
 
         app.MapGet("/api/MerchantCategory/{merchantId}", async (BlueberryContext db, int merchantId) =>

@@ -125,10 +125,17 @@
 
     </section>
     <MessageDialog @ref="messageDialog" />
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span class="alert-icon">⚠️</span>
+            <div><strong>Attention :</strong> @errorMessage</div>
+            <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
 </div>
 
 @code {
-    //[Parameter]
     private List<MerchantProduct> merchantProducts = new();
     private List<Category> merchantCategories = new();
     private List<Product>? allProducts;
@@ -142,13 +149,21 @@
     private decimal priceTVQ = 0;
     private decimal total = 0;
     private MessageDialog? messageDialog;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products");
-        int num = allProducts.Count;
-        merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
-        merchantCategories = MerchantState.SelectedMerchant.Categories.ToList();
+        try
+        {
+            allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products");
+            int num = allProducts.Count;
+            merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
+            merchantCategories = MerchantState.SelectedMerchant.Categories.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Impossible de charger les données : {ex.Message}";
+        }
     }
 
     private void SelectProduct(Product product)
@@ -210,24 +225,30 @@
                 TvqAmount = item.Taxe.Contains("P") ? item.Price * 0.0975m : 0
             }).ToList()
         };
+        try
+        {
+            HttpResponseMessage response = await Http.PostAsJsonAsync($"api/Sales/{MerchantState.SelectedMerchant.Id}", request);
+            if (response.IsSuccessStatusCode)
+            {
+                if (messageDialog is not null)
+                {
+                    messageDialog.Title = "Vente réussie";
+                    messageDialog.Message = "La vente de " + total + " a été effectuée avec succès!";
 
-        await Http.PostAsJsonAsync($"api/Sales/{MerchantState.SelectedMerchant.Id}", request);
-
+                    await messageDialog.ShowAsync();
+                }
+            }
+            else 
+            {
+                throw new Exception($"Erreur lors de la création de la vente. Statut : {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite : {ex.Message}";
+        }
         ResetTransaction();
-        if (messageDialog is not null)
-        {
-            messageDialog.Title = "Vente réussie";
-            messageDialog.Message = "La vente de " + total + " a été effectuée avec succès!";
 
-            await messageDialog.ShowAsync();
-        }
-    }
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-
-        }
     }
 
     private void SelectSaleItem((int Quantity, string Name, int productID, decimal Price, string Taxe) item)
