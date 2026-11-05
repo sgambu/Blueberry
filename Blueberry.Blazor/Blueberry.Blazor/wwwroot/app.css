@@ -323,6 +323,30 @@ h1:focus {
     color: #0f172a;
 }
 
+.categories-table .col-price {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.categories-page .section-divider {
+    margin: 2.5rem 0 1.25rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.categories-page .section-divider .section-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.categories-page .section-divider .section-subtitle {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
 .categories-table .col-actions {
     white-space: nowrap;
 }
@@ -413,7 +437,8 @@ h1:focus {
     margin-bottom: 0.4rem;
 }
 
-.categories-page .form-control {
+.categories-page .form-control,
+.categories-page .form-select {
     border-radius: 8px;
     border: 1px solid #cbd5e1;
     padding: 0.65rem 0.9rem;
@@ -421,7 +446,8 @@ h1:focus {
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.categories-page .form-control:focus {
+.categories-page .form-control:focus,
+.categories-page .form-select:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
     outline: none;

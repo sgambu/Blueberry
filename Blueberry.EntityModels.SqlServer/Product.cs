@@ -20,6 +20,8 @@ public partial class Product
 
     public int CategoryId { get; set; }
 
+    public bool IsActive { get; set; }
+
     [ForeignKey("CategoryId")]
     [InverseProperty("Products")]
     public virtual Category Category { get; set; } = null!;

@@ -29,7 +29,8 @@ static partial class Program
             {
                 Name = category.Name.Trim(),
                 Tps = category.Tps,
-                Tvq = category.Tvq
+                Tvq = category.Tvq,
+                IsActive = true
             };
 
             db.Categories.Add(newCategory);
@@ -94,7 +95,25 @@ static partial class Program
 
             if (category.Products.Any())
             {
-                return Results.BadRequest("Impossible de supprimer cette catégorie car elle contient des produits associés.");
+                var activeProducts = category.Products.Where(p => p.IsActive).ToList();
+                if (activeProducts.Any())
+                { 
+                    //return Results.BadRequest("Impossible de supprimer cette catégorie car elle contient des produits associés.");
+                    return Results.Ok(new Blueberry.EntityModels.SqlServer.DTOs.DeleteProductResponse
+                    {
+                        Message = "Impossible de supprimer cette catégorie car elle contient des produits associés."
+                    });
+                }
+                else
+                {
+                    category.IsActive = false;
+                    await db.SaveChangesAsync();
+
+                    return Results.Ok(new Blueberry.EntityModels.SqlServer.DTOs.DeleteProductResponse
+                    {
+                        Message = "La category a été désactivé car tous ses produits sont inactifs."
+                    });
+                }
             }
 
             category.Merchants.Clear();

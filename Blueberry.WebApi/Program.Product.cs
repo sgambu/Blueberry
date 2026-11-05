@@ -34,16 +34,41 @@ static partial class Program
             await db.SaveChangesAsync();
             return Results.NoContent();
         });
+
+        //Delete product only if no sale items are associated with it otherwise set it to IsActive = false
         app.MapDelete("/api/Products/{id}", async (int id, BlueberryContext db) =>
         {
             var product = await db.Products.FindAsync(id);
+
             if (product == null)
             {
                 return Results.NotFound();
             }
-            db.Products.Remove(product);
-            await db.SaveChangesAsync();
-            return Results.NoContent();
+
+            var saleItems = await db.SaleItems
+                .Where(si => si.ProductId == id)
+                .ToListAsync();
+
+            if (saleItems.Any())
+            {
+                product.IsActive = false;
+                await db.SaveChangesAsync();
+
+                return Results.Ok(new Blueberry.EntityModels.SqlServer.DTOs.DeleteProductResponse
+                {
+                    Message = "Le produit a été désactivé car il existe dans des ventes passées."
+                });
+            }
+            else
+            {
+                db.Products.Remove(product);
+                await db.SaveChangesAsync();
+
+                return Results.Ok(new Blueberry.EntityModels.SqlServer.DTOs.DeleteProductResponse
+                {
+                    Message = "Le produit a été supprimé."
+                });
+            }
         });
     }
 

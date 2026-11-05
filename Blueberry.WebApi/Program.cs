@@ -1,5 +1,6 @@
 using Blueberry.EntityModels;
 using Blueberry.DataContext.SqlServer;
+using Blueberry.EntityModels.SqlServer.DTOs;
 using Microsoft.AspNetCore.HttpLogging;
 
 try

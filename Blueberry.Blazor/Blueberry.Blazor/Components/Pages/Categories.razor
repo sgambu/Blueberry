@@ -34,7 +34,10 @@
         </div>
     }
 
-    <div class="content-grid">
+    <!-- ==========================================
+         Section Catégories (Haut)
+         ========================================== -->
+    <div class="content-grid mb-5">
         <!-- Liste des catégories existantes -->
         <section class="card-panel list-panel">
             <div class="panel-header">
@@ -70,6 +73,7 @@
                                 <th>TPS (5%)</th>
                                 <th>TVQ (9.975%)</th>
                                 <th>Produits</th>
+                                <th>Actif</th>
                                 <th class="text-end">Actions</th>
                             </tr>
                         </thead>
@@ -77,9 +81,10 @@
                             @foreach (var cat in categories)
                             {
                                 var isSelected = (editingCategory?.Id == cat.Id);
+                                var isCategoryActive = (selectedCategoryId == cat.Id);
                                 var productCount = GetProductCountForCategory(cat.Id);
 
-                                <tr class="@(isSelected ? "selected-row" : "")">
+                                <tr class="@(isSelected ? "selected-row" : (isCategoryActive ? "table-light" : ""))">
                                     <td class="col-name">
                                         <strong>@cat.Name</strong>
                                     </td>
@@ -103,9 +108,20 @@
                                             <span class="badge badge-none">Exonérée</span>
                                         }
                                     </td>
-                                    <td class ="text-end col-actions">
+                                    <td>
+                                        @if (cat.IsActive)
+                                        {
+                                            <span class="badge badge-success">Actif</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-secondary">Inactif</span>
+                                        }
+                                    </td>
+                                    <td class="text-end col-actions">
                                         <button type="button"
-                                                class="btn btn-sm btn-outline-primary"
+                                                class="btn btn-sm @(isCategoryActive ? "btn-primary" : "btn-outline-primary")"
+                                                title="Afficher les produits de cette catégorie"
                                                 @onclick="() => GetProductForCategory(cat.Id)">
                                             📦 @productCount produit(s)
                                         </button>
@@ -130,10 +146,10 @@
             }
         </section>
 
-        <!-- Formulaire d'ajout / modification -->
+        <!-- Formulaire d'ajout / modification de catégorie -->
         <section class="card-panel form-panel">
             <div class="panel-header">
-                @if (isEditing)
+                @if (editingCategory != null)
                 {
                     <h3>Modifier la catégorie</h3>
                 }
@@ -144,7 +160,7 @@
             </div>
 
             <div class="form-body">
-                @if (isEditing && editingCategory != null)
+                @if (editingCategory != null)
                 {
                     <div class="edit-badge-bar">
                         <span class="badge bg-warning text-dark">Mode Édition : Catégorie #@editingCategory.Id</span>
@@ -155,14 +171,14 @@
                     <label for="categoryName" class="form-label">Nom de la catégorie <span class="text-danger">*</span></label>
                     <input type="text"
                            id="categoryName"
-                           class="form-control @(nameValidationError != null ? "is-invalid" : "")"
+                           class="form-control @(categoryNameValidationError != null ? "is-invalid" : "")"
                            placeholder="ex: Fruits frais, Pâtisseries, Boissons..."
                            maxlength="50"
                            @bind="currentCategoryName"
                            @bind:event="oninput" />
-                    @if (nameValidationError != null)
+                    @if (categoryNameValidationError != null)
                     {
-                        <div class="invalid-feedback">@nameValidationError</div>
+                        <div class="invalid-feedback">@categoryNameValidationError</div>
                     }
                     <small class="form-text-muted">Maximum 50 caractères</small>
                 </div>
@@ -198,7 +214,7 @@
                 </div>
 
                 <div class="form-actions">
-                    @if (isEditing)
+                    @if (editingCategory != null)
                     {
                         <button class="btn btn-primary"
                                 disabled="@isSubmitting"
@@ -227,164 +243,242 @@
                 </div>
             </div>
         </section>
-        <div class="content-grid">
-            <!-- Liste des produits dans la catégorie -->
-            <section class="card-panel list-panel">
-                @if (isLoading)
+    </div>
+
+    <!-- Séparateur visuel de section -->
+    <div class="section-divider">
+        <div>
+            <h3 class="section-title">Produits</h3>
+            <p class="section-subtitle">
+                @if (selectedCategory != null)
                 {
-                    <div class="loading-state">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Chargement...</span>
-                        </div>
-                        <p>Chargement des produits...</p>
-                    </div>
-                }
-                else if (productInCat == null || productInCat.Count == 0)
-                {
-                    <div class="empty-state">
-                        <p>Aucun produit enregistré pour le moment.</p>
-                        <button class="btn btn-primary" @onclick="StartNewCategory">Créer le premier produit</button>
-                    </div>
+                    <span>Produits de la catégorie <strong>« @selectedCategory.Name »</strong></span>
                 }
                 else
-                {            
-                    Category myCategory = categories.FirstOrDefault(c => c.Id == productInCat.FirstOrDefault()?.CategoryId);
-                    <div class="panel-header">
-                        <div class="panel-title-group">
-                            <h3>Produits dans la catégorie @myCategory.Name</h3>
-                            <span class="badge count-badge">@(productInCat?.Count ?? 0)</span>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table categories-table">
-                            <thead>
-                                <tr>
-                                    <th>Nom</th>
-                                    <th>Prix par défaut</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var product in productInCat)
-                                {
-                                    <tr>  
-                                        <td class="col-name">
-                                            <strong>@product.Name</strong>
-                                        </td>
-                                        <td class="col-price">
-                                            @product.PriceDefault.ToString("C")
-                                        </td>
-                                        <td class="text-end col-actions">
-                                            <button class="btn btn-sm btn-action btn-edit"
-                                                    title="Modifier ce produit"
-                                                    @onclick="() => EditProduct(product)">
-                                                ✏️ Modifier
-                                            </button>
-                                            <button class="btn btn-sm btn-action btn-delete"
-                                                    title="Supprimer ce produit"
-                                                    @onclick="() => DeleteProduct(product)">
-                                                🗑️
-                                            </button>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+                {
+                    <span>Sélectionnez une catégorie ci-dessus pour afficher et gérer ses produits.</span>
                 }
-            </section>
-            <!-- Formulaire d'ajout / modification -->
-            <section class="card-panel form-panel">
-                <div class="panel-header">
-                    @if (isEditing)
+            </p>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         Section Produits (Bas)
+         ========================================== -->
+    <div class="content-grid">
+        <!-- Liste des produits dans la catégorie -->
+        <section class="card-panel list-panel">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    @if (selectedCategory != null)
                     {
-                        <h3>Modifier le produit</h3>
+                        <h3>Produits : @selectedCategory.Name</h3>
                     }
                     else
                     {
-                        <h3>Ajouter un produit</h3>
+                        <h3>Produits</h3>
                     }
+                    <span class="badge count-badge">@(productInCat?.Count ?? 0)</span>
                 </div>
+                @if (editingProduct != null)
+                {
+                    <button class="btn btn-sm btn-outline-primary"
+                            title="Basculer vers l'ajout d'un nouveau produit"
+                            @onclick="StartNewProduct">
+                        ➕ Nouveau produit
+                    </button>
+                }
+            </div>
 
-                <div class="form-body">
-                    @if (isEditing && editingProduct != null)
+            @if (isLoading)
+            {
+                <div class="loading-state">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p>Chargement des produits...</p>
+                </div>
+            }
+            else if (selectedCategoryId == null)
+            {
+                <div class="empty-state">
+                    <p>Sélectionnez une catégorie ci-dessus en cliquant sur « 📦 X produit(s) » pour afficher ses produits.</p>
+                </div>
+            }
+            else if (productInCat == null || productInCat.Count == 0)
+            {
+                <div class="empty-state">
+                    <p>Aucun produit enregistré dans cette catégorie pour le moment.</p>
+                    <button class="btn btn-primary" @onclick="StartNewProduct">Créer un premier produit</button>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table categories-table">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Prix par défaut</th>
+                                <th>Actif</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var product in productInCat)
+                            {
+                                var isProductSelected = (editingProduct?.Id == product.Id);
+                                <tr class="@(isProductSelected ? "selected-row" : "")">  
+                                    <td class="col-name">
+                                        <strong>@product.Name</strong>
+                                    </td>
+                                    <td class="col-price">
+                                        @product.PriceDefault.ToString("C")
+                                    </td>
+                                    <td>
+                                        @if (product.IsActive)
+                                        {
+                                            <span class="badge badge-success">Actif</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-secondary">Inactif</span>
+                                        }
+                                    </td>
+                                    <td class="text-end col-actions">
+                                        <button class="btn btn-sm btn-action btn-edit"
+                                                title="Modifier ce produit"
+                                                @onclick="() => EditProduct(product)">
+                                            ✏️ Modifier
+                                        </button>
+                                        <button class="btn btn-sm btn-action btn-delete"
+                                                title="Supprimer ce produit"
+                                                @onclick="() => DeleteProduct(product)">
+                                            🗑️
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        <!-- Formulaire d'ajout / modification du produit -->
+        <section class="card-panel form-panel">
+            <div class="panel-header">
+                @if (editingProduct != null)
+                {
+                    <h3>Modifier le produit</h3>
+                }
+                else
+                {
+                    <h3>Ajouter un produit</h3>
+                }
+            </div>
+
+            <div class="form-body">
+                @if (editingProduct != null)
+                {
+                    <div class="edit-badge-bar">
+                        <span class="badge bg-warning text-dark">Mode Édition : Produit #@editingProduct.Id</span>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label for="productName" class="form-label">Nom du produit <span class="text-danger">*</span></label>
+                    <input type="text"
+                           id="productName"
+                           class="form-control @(productNameValidationError != null ? "is-invalid" : "")"
+                           placeholder="ex: Pommes Gala, Croissant au beurre, Café latté..."
+                           maxlength="50"
+                           @bind="currentProductName"
+                           @bind:event="oninput" />
+                    @if (productNameValidationError != null)
                     {
-                        <div class="edit-badge-bar">
-                            <span class="badge bg-warning text-dark">Mode Édition : Produit #@editingProduct.Id</span>
-                        </div>
+                        <div class="invalid-feedback">@productNameValidationError</div>
+                    }
+                    <small class="form-text-muted">Maximum 50 caractères</small>
+                </div>
 
+                <div class="mb-3">
+                    <label for="productPrice" class="form-label">Prix par défaut <span class="text-danger">*</span></label>
+                    <input type="number"
+                           id="productPrice"
+                           class="form-control"
+                           placeholder="ex: 10.99"
+                           step="0.01"
+                           min="0"
+                           @bind="currentProductPriceDefault" />
+                </div>
 
-                        <div class="mb-3">
-                            <label for="productName" class="form-label">Nom du produit <span class="text-danger">*</span></label>
-                            <input type="text"
-                            id="productName"
-                            class="form-control @(nameValidationError != null ? "is-invalid" : "")"
-                            placeholder="ex: Fruits frais, Pâtisseries, Boissons..."
-                            maxlength="50"
-                            @bind=editingProduct.Name
-                            @bind:event="oninput" />
-                            @if (nameValidationError != null)
+                <div class="mb-3">
+                    <label for="productCategory" class="form-label">Catégorie <span class="text-danger">*</span></label>
+                    <select id="productCategory"
+                            class="form-select"
+                            @bind="currentProductCategoryId">
+                        @if (categories == null || categories.Count == 0)
+                        {
+                            <option value="0" disabled>Aucune catégorie disponible</option>
+                        }
+                        else
+                        {
+                            @foreach (var cat in categories)
                             {
-                                <div class="invalid-feedback">@nameValidationError</div>
+                                <option value="@cat.Id">@cat.Name</option>
                             }
-                            <small class="form-text-muted">Maximum 50 caractères</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="productPrice" class="form-label">Prix par défaut <span class="text-danger">*</span></label>
-                            <input type="number"
-                                   id="productPrice"
-                                   class="form-control @(nameValidationError != null ? "is-invalid" : "")"
-                                   placeholder="ex: 10.99"
-                                   step="0.01"
-                                   min="0"
-                                   @bind=editingProduct.PriceDefault
-                                   @bind:event="oninput" />
-                            @if (nameValidationError != null)
-                            {
-                                <div class="invalid-feedback">@nameValidationError</div>
-                            }
-                        </div>
-                        <div class="mb-3">Category: @categories.FirstOrDefault(c => c.Id == editingProduct.CategoryId)?.Name</div>
-                        <div class="mb-3">
-                            <button class="btn btn-sm btn-action btn-edit"
-                            title="Modifier la catégorie de ce produit"
-                            @onclick="() => ChangerCategory()">
-                                ✏️ Modifier la catégorie
-                            </button>
-                        </div>
-
-                        <div class="form-actions">
-                            @if (isEditing)
-                            {
-                                <button class="btn btn-primary"
-                                disabled="@isSubmitting"
-                                @onclick="SaveProduct">
-                                    @(isSubmitting ? "Enregistrement..." : "💾 Enregistrer les modifications")
-                                </button>
-                                <button class="btn btn-outline-secondary"
-                                disabled="@isSubmitting"
-                                @onclick="CancelEdit">
-                                    Annuler
-                                </button>
-                            }
-                            else
-                            {
-                                <button class="btn btn-primary"
-                                disabled="@isSubmitting"
-                                @onclick="SaveProduct">
-                                    @(isSubmitting ? "Ajout en cours..." : "➕ Ajouter le produit")
-                                </button>
-                                <button class="btn btn-outline-secondary"
-                                disabled="@isSubmitting"
-                                @onclick="ResetForm">
-                                    Réinitialiser
-                                </button>
-                            }
+                        }
+                    </select>
+                    <small class="form-text-muted">
+                        Catégorie sélectionnée : <strong>@(categories?.FirstOrDefault(c => c.Id == currentProductCategoryId)?.Name ?? "Non assignée")</strong>
+                    </small>
+                </div>
+                <div class="mb-3">
+                    @if (editingProduct != null)
+                    {
+                        <label for="productActive" class="form-label">Statut du produit</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="productActive"
+                                   @bind="editingProduct.IsActive" />
+                            <label class="form-check-label" for="productActive">
+                                @(editingProduct.IsActive ? "Actif" : "Inactif")
+                            </label>
                         </div>
                     }
                 </div>
-            </section>
-        </div>
+                <div class="form-actions">
+                    @if (editingProduct != null)
+                    {
+                        <button class="btn btn-primary"
+                                disabled="@isSubmitting"
+                                @onclick="SaveProduct">
+                            @(isSubmitting ? "Enregistrement..." : "💾 Enregistrer les modifications")
+                        </button>
+                        <button class="btn btn-outline-secondary"
+                                disabled="@isSubmitting"
+                                @onclick="CancelProductEdit">
+                            Annuler
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary"
+                                disabled="@isSubmitting"
+                                @onclick="SaveProduct">
+                            @(isSubmitting ? "Ajout en cours..." : "➕ Ajouter le produit")
+                        </button>
+                        <button class="btn btn-outline-secondary"
+                                disabled="@isSubmitting"
+                                @onclick="ResetProductForm">
+                            Réinitialiser
+                        </button>
+                    }
+                </div>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -398,12 +492,22 @@
     private bool isEditing = false;
     private Category? editingCategory = null;
     private Product? editingProduct = null;
+    private int? selectedCategoryId = null;
 
+    private Category? selectedCategory => categories.FirstOrDefault(c => c.Id == selectedCategoryId);
+
+    // Champs pour Catégorie
     private string currentCategoryName = "";
     private bool currentCategoryTps = false;
     private bool currentCategoryTvq = false;
+    private string? categoryNameValidationError;
 
-    private string? nameValidationError;
+    // Champs pour Produit
+    private string currentProductName = "";
+    private decimal currentProductPriceDefault = 0m;
+    private int currentProductCategoryId = 0;
+    private string? productNameValidationError;
+
     private string? successMessage;
     private string? errorMessage;
 
@@ -420,6 +524,20 @@
         {
             categories = await Http.GetFromJsonAsync<List<Category>>("api/Categories") ?? new();
             allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
+
+            if (selectedCategoryId.HasValue && categories.Any(c => c.Id == selectedCategoryId.Value))
+            {
+                GetProductForCategory(selectedCategoryId.Value);
+            }
+            else if (categories.Count > 0)
+            {
+                GetProductForCategory(categories[0].Id);
+            }
+
+            if (currentProductCategoryId <= 0 && categories.Count > 0)
+            {
+                currentProductCategoryId = selectedCategoryId ?? categories[0].Id;
+            }
         }
         catch (Exception ex)
         {
@@ -430,15 +548,25 @@
             isLoading = false;
         }
     }
+
     private void GetProductForCategory(int categoryId)
     {
+        selectedCategoryId = categoryId;
         productInCat = allProducts.Where(p => p.CategoryId == categoryId).ToList();
+
+        // Si on n'est pas en train d'éditer un produit existant, aligner la catégorie par défaut du formulaire d'ajout
+        if (editingProduct == null)
+        {
+            currentProductCategoryId = categoryId;
+        }
     }
+
     private int GetProductCountForCategory(int categoryId)
     {
         return allProducts?.Count(p => p.CategoryId == categoryId) ?? 0;
     }
 
+    // Gestion Catégories
     private void StartNewCategory()
     {
         isEditing = false;
@@ -446,7 +574,7 @@
         currentCategoryName = "";
         currentCategoryTps = false;
         currentCategoryTvq = false;
-        nameValidationError = null;
+        categoryNameValidationError = null;
         errorMessage = null;
     }
 
@@ -457,7 +585,7 @@
         currentCategoryName = cat.Name;
         currentCategoryTps = cat.Tps;
         currentCategoryTvq = cat.Tvq;
-        nameValidationError = null;
+        categoryNameValidationError = null;
         errorMessage = null;
         successMessage = null;
     }
@@ -474,19 +602,19 @@
 
     private async Task SaveCategory()
     {
-        nameValidationError = null;
+        categoryNameValidationError = null;
         errorMessage = null;
         successMessage = null;
 
         if (string.IsNullOrWhiteSpace(currentCategoryName))
         {
-            nameValidationError = "Veuillez entrer un nom pour la catégorie.";
+            categoryNameValidationError = "Veuillez entrer un nom pour la catégorie.";
             return;
         }
 
         if (currentCategoryName.Trim().Length > 50)
         {
-            nameValidationError = "Le nom ne doit pas dépasser 50 caractères.";
+            categoryNameValidationError = "Le nom ne doit pas dépasser 50 caractères.";
             return;
         }
 
@@ -494,7 +622,7 @@
 
         try
         {
-            if (isEditing && editingCategory != null)
+            if (editingCategory != null)
             {
                 var updated = new Category
                 {
@@ -557,19 +685,22 @@
         errorMessage = null;
         successMessage = null;
 
-        var count = GetProductCountForCategory(cat.Id);
+        /*var count = GetProductCountForCategory(cat.Id);
         if (count > 0)
         {
             errorMessage = $"Impossible de supprimer la catégorie « {cat.Name} » car elle contient {count} produit(s). Réassignez d'abord ces produits avant de la supprimer.";
             return;
-        }
+        }*/
 
         try
         {
             var response = await Http.DeleteAsync($"api/Categories/{cat.Id}");
             if (response.IsSuccessStatusCode)
             {
-                successMessage = $"La catégorie « {cat.Name} » a été supprimée avec succès.";
+                var result = await response.Content.ReadFromJsonAsync<EntityModels.SqlServer.DTOs.DeleteProductResponse>();
+                successMessage = result?.Message;
+
+                //successMessage = $"La catégorie « {cat.Name} » a été supprimée avec succès.";
                 if (editingCategory?.Id == cat.Id)
                 {
                     StartNewCategory();
@@ -588,33 +719,172 @@
         }
     }
 
+    // Gestion Produits
+    private void StartNewProduct()
+    {
+        editingProduct = null;
+        currentProductName = "";
+        currentProductPriceDefault = 0m;
+        currentProductCategoryId = selectedCategoryId ?? (categories.FirstOrDefault()?.Id ?? 0);
+        productNameValidationError = null;
+        errorMessage = null;
+    }
+
     private void EditProduct(Product product)
     {
-        isEditing = true;
         editingProduct = product;
-        nameValidationError = null;
+        currentProductName = product.Name;
+        currentProductPriceDefault = product.PriceDefault;
+        currentProductCategoryId = product.CategoryId;
+        productNameValidationError = null;
         errorMessage = null;
         successMessage = null;
     }
-    
-    private void ChangerCategory()
+
+    private void CancelProductEdit()
     {
-        //editingProduct
+        StartNewProduct();
     }
 
-    private void DeleteProduct(Product product)
+    private void ResetProductForm()
     {
-        //If the product is already saled, we cannot delete it. We can only mark it as inactive.
+        StartNewProduct();
     }
 
-    private void SaveProduct()
+    private async Task SaveProduct()
     {
-        // Implement the logic to save the product (either create or update)
+        productNameValidationError = null;
+        errorMessage = null;
+        successMessage = null;
+
+        if (string.IsNullOrWhiteSpace(currentProductName))
+        {
+            productNameValidationError = "Veuillez entrer un nom pour le produit.";
+            return;
+        }
+
+        if (currentProductName.Trim().Length > 50)
+        {
+            productNameValidationError = "Le nom ne doit pas dépasser 50 caractères.";
+            return;
+        }
+
+        if (currentProductCategoryId <= 0)
+        {
+            errorMessage = "Veuillez sélectionner une catégorie pour le produit.";
+            return;
+        }
+
+        isSubmitting = true;
+
+        try
+        {
+            if (editingProduct != null)
+            {
+                var updated = new Product
+                {
+                    Id = editingProduct.Id,
+                    Name = currentProductName.Trim(),
+                    PriceDefault = currentProductPriceDefault,
+                    CategoryId = currentProductCategoryId
+                };
+
+                var response = await Http.PutAsJsonAsync("api/Products", updated);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    successMessage = $"Le produit « {updated.Name} » a été modifié avec succès !";
+                    await LoadDataAsync();
+                    if (selectedCategoryId.HasValue)
+                    {
+                        GetProductForCategory(selectedCategoryId.Value);
+                    }
+                    StartNewProduct();
+                }
+                else
+                {
+                    var msg = await response.Content.ReadAsStringAsync();
+                    errorMessage = $"Erreur lors de la modification : {msg}";
+                }
+            }
+            else
+            {
+                var newProduct = new Product
+                {
+                    Name = currentProductName.Trim(),
+                    PriceDefault = currentProductPriceDefault,
+                    CategoryId = currentProductCategoryId
+                };
+
+                var response = await Http.PostAsJsonAsync("api/Products", newProduct);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    successMessage = $"Le produit « {newProduct.Name} » a été ajouté avec succès !";
+                    selectedCategoryId = newProduct.CategoryId;
+                    await LoadDataAsync();
+                    GetProductForCategory(newProduct.CategoryId);
+                    StartNewProduct();
+                }
+                else
+                {
+                    var msg = await response.Content.ReadAsStringAsync();
+                    errorMessage = $"Erreur lors de la création : {msg}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite : {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task DeleteProduct(Product product)
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/Products/{product.Id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content
+                    .ReadFromJsonAsync<EntityModels.SqlServer.DTOs.DeleteProductResponse>();
+
+                successMessage = result?.Message;
+
+                if (editingProduct?.Id == product.Id)
+                {
+                    StartNewProduct();
+                }
+
+                await LoadDataAsync();
+
+                if (selectedCategoryId.HasValue)
+                {
+                    GetProductForCategory(selectedCategoryId.Value);
+                }
+            }
+            else
+            {
+                var msg = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Erreur lors de la suppression : {msg}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors de la suppression : {ex.Message}";
+        }
     }
 
     private void GoToHome()
     {
         Navigation.NavigateTo("/");
     }
-
 }
