@@ -8,6 +8,9 @@
     <header class="page-header">
         <div class="header-content">
             <div class="header-left">
+                <button class="btn-back" @onclick="GoBackToMerchantCategory" title="Retour à la gestion des stocks">
+                    <span class="back-arrow">←</span> Retour au Merchant Category
+                </button>
                 <button class="btn-back" @onclick="GoBackToManager" title="Retour à la gestion des stocks">
                     <span class="back-arrow">←</span> Retour au Manager
                 </button>
@@ -17,7 +20,7 @@
         </div>
     </header>
 
-@if (allProduct is null)
+@if (isLoading)
 {
     <p><em>Loading...</em></p>
 }
@@ -29,15 +32,15 @@ else
         <div class="category-selection">
             <label for="category">Catégorie :</label>
                 <select id="category" @bind="selectedCategoryId">
-                @if (merchantCategories is not null)
-                {
-                    @foreach (var category in merchantCategories)
+                    @if (merchantActiveCategories is not null)
                     {
-                        <option value="@category.Id">
-                            @category.Name
-                        </option>
+                        @foreach (var category in merchantActiveCategories)
+                        {
+                            <option value="@category.Id">
+                                @category.Name
+                            </option>
+                        }
                     }
-                }
                 </select>
         </div>
     </section>
@@ -57,40 +60,42 @@ else
             <tbody>
                 @foreach (var marProduct in selectedMerchant.MerchantProducts)
                 {
-                    Product product = allProduct.FirstOrDefault(p => p.Id == marProduct.ProductId);
+                    Product product = allActiveProduct.FirstOrDefault(p => p.Id == marProduct.ProductId);
                     @if (product != null && product.CategoryId == selectedCategoryId)
                     {
-                        Category cat = merchantCategories.FirstOrDefault(c => c.Id == selectedCategoryId);
+                        Category cat = merchantActiveCategories.FirstOrDefault(c => c.Id == selectedCategoryId);
                         var taxeDescription = "";
-
-                        @if (cat.Tps)
+                        @if (cat is not null)
                         {
-                            taxeDescription += "TPS ";
+                            @if (cat.Tps)
+                            {
+                                taxeDescription += "TPS ";
+                            }
+
+                            @if (cat.Tvq)
+                            {
+                                taxeDescription += "TVQ";
+                            }
+
+                            <tr @key="product.Id">
+                                <td>@product.Name</td>
+                                <td>@product.PriceDefault</td>
+                                <td>@taxeDescription</td>
+                                <td>
+                                    <textarea value="@marProduct.Price"
+                                              @onchange="e => UpdatePrice(product, e.Value?.ToString())">
+                                    </textarea>
+                                </td>  
+
+                                <td>@marProduct.Stock</td>  
+                                <td>
+                                    <textarea value=""
+                                              @onchange="e => UpdateQuantity(product, e.Value?.ToString())"
+                                              placeholder="Entrez la quantité à ajouter">
+                                    </textarea>
+                                </td>
+                            </tr>
                         }
-
-                        @if (cat.Tvq)
-                        {
-                            taxeDescription += "TVQ";
-                        }
-
-                        <tr @key="product.Id">
-                            <td>@product.Name</td>
-                            <td>@product.PriceDefault</td>
-                            <td>@taxeDescription</td>
-                            <td>
-                                <textarea value="@marProduct.Price"
-                                          @onchange="e => UpdatePrice(product, e.Value?.ToString())">
-                                </textarea>
-                            </td>  
-
-                            <td>@marProduct.Stock</td>  
-                            <td>
-                                <textarea value=""
-                                          @onchange="e => UpdateQuantity(product, e.Value?.ToString())"
-                                          placeholder="Entrez la quantité à ajouter">
-                                </textarea>
-                            </td>
-                        </tr>
                     }
                 }
             </tbody>
@@ -115,23 +120,33 @@ else
         Navigation.NavigateTo("/manager");
     }
 
+    private void GoBackToMerchantCategory()
+    {
+        Navigation.NavigateTo($"/marchant-category/{selectedMerchant.Id}");
+    }
+
     private Merchant selectedMerchant = new();
-    private List<Product> allProduct = new();
-    private ICollection<Category> merchantCategories;
+    private List<Product> allActiveProduct = new();
+    private ICollection<Category> merchantActiveCategories;
     private int selectedCategoryId = 0;
     private MessageDialog? messageDialog;
     private List<ProductModification> productModifications = new();
     private string? errorMessage;
+    private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
+        isLoading = true;
         try
         {
             selectedMerchant = MerchantState.SelectedMerchant;
-            allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
-            merchantCategories = selectedMerchant.Categories;
+            
+            List<Product> allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
+            allActiveProduct = allProduct.Where(p => p.IsActive).ToList();
+            ICollection<Category> merchantCategories = selectedMerchant.Categories;
+            merchantActiveCategories = merchantCategories.Where(c => c.IsActive).ToList();
 
-            if (merchantCategories is not null && merchantCategories.Any())
+            if (merchantActiveCategories is not null && merchantActiveCategories.Any())
             {
                 selectedCategoryId = merchantCategories.First().Id;
             }
@@ -139,6 +154,10 @@ else
         catch (Exception ex)
         {
             errorMessage = $"Impossible de charger les données : {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 

@@ -370,6 +370,26 @@ h1:focus {
     font-size: 0.75rem;
 }
 
+.badge-active,
+.badge-success {
+    background-color: #dcfce7;
+    color: #15803d;
+    font-weight: 600;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
+.badge-inactive,
+.badge-secondary {
+    background-color: #f1f5f9;
+    color: #64748b;
+    font-weight: 600;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+}
+
 .badge-none {
     background-color: #f1f5f9;
     color: #94a3b8;

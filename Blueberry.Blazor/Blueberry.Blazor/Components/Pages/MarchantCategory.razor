@@ -37,14 +37,14 @@
         {
             <ProductInfoDialog @ref="productInfoDialog"
                                SelectedMerchant="@selectedMerchant"
-                               Products="@allProduct" />
+                               Products="@allActiveProduct" />
             <button @onclick="ShowProductInfo">
                 Informations sur les produits
             </button>
         }
     </section>
 
-    @if (merchantId != 0)
+    @if (merchantId != 0 && !isLoading)
     {
         <!-- Catégorie et produits -->
         <section class="form-section">
@@ -53,7 +53,7 @@
             <div class="category-selection">
                 <label for="category">Catégorie :</label>
                 <select id="category" @bind="selectedCategoryId">
-                    @foreach (var category in allCategories)
+                    @foreach (var category in allActiveCategories)
                     {
                         <option value="@category.Id">
                             @category.Name
@@ -72,7 +72,7 @@
                 <h5>Produits dans la catégorie</h5>
 
                 <ul class="product-list">
-                    @foreach (var product in allProduct)
+                    @foreach (var product in allActiveProduct)
                     {
                         @if (product.CategoryId == selectedCategoryId)
                         {
@@ -121,11 +121,12 @@
     private Merchant selectedMerchant = new();
     private List<MerchantProduct> oriMerchantProducts = new();
     private List<MerchantProduct> merchantProducts = new();
-    private List<Category> allCategories = new();
+    private List<Category> allActiveCategories = new();
     private List<MerchantProduct> allMerchantProducts = new();
-    private List<Product> allProduct = new();
+    private List<Product> allActiveProduct = new();
     private MessageDialog? messageDialog;
     private string? errorMessage;
+    private bool isLoading = true;
 
     private int selectedCategoryId = 1;
     //private bool productChange = false;
@@ -134,6 +135,9 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        isLoading = true;
+        errorMessage = null;
+
         try
         {
             if (id is not null)
@@ -145,15 +149,20 @@
                 oriMerchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchantId}") ?? new();
 
             }
-            allCategories = await Http.GetFromJsonAsync<List<Category>>("api/Categories") ?? new();
+            List<Category> allCategories = await Http.GetFromJsonAsync<List<Category>>("api/Categories") ?? new();
+            allActiveCategories = allCategories.Where(c => c.IsActive).ToList();
             allMerchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>("api/MerchantProducts") ?? new();
-            allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
+            List<Product> allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
+            allActiveProduct = allProduct.Where(p => p.IsActive).ToList();
         }
         catch (Exception ex)
         {
             errorMessage = $"Impossible de charger les données : {ex.Message}";
         }
-
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task SaveMerchantChanges()
@@ -228,7 +237,7 @@
                 if (!oriMerchantProducts.Any(d => d.MerchantId == mer.MerchantId && d.ProductId == mer.ProductId))
                 {
                     //Add the category if it does not exist
-                    int catId = allProduct.FirstOrDefault(p => p.Id == mer.ProductId).CategoryId;
+                    int catId = allActiveProduct.FirstOrDefault(p => p.Id == mer.ProductId).CategoryId;
 
                     HttpResponseMessage response = await Http.PostAsJsonAsync($"api/MerchantCategory/{mer.MerchantId}", catId);
                     HttpResponseMessage response2 = await Http.PostAsJsonAsync("api/MerchantProducts", mer);
@@ -267,7 +276,7 @@
 
         if (isChecked)
         {
-            Product p = allProduct.FirstOrDefault(d => d.Id == productId);
+            Product p = allActiveProduct.FirstOrDefault(d => d.Id == productId);
             decimal defaultPrice = p.PriceDefault;
             merchantProducts.Add(new MerchantProduct { ProductId = productId, MerchantId = selectedMerchant.Id, Price = defaultPrice, Stock = 0 });
         }
@@ -278,7 +287,7 @@
     }
     private Category GetCategoryInfo()
     {
-        return allCategories.FirstOrDefault(c => c.Id == selectedCategoryId) ?? new Category();
+        return allActiveCategories.FirstOrDefault(c => c.Id == selectedCategoryId) ?? new Category();
     }
 
     private bool IsProductInMerchant(int productId)

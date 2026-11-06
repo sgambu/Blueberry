@@ -29,7 +29,8 @@ static partial class Program
                         c.Id,
                         c.Name,
                         c.Tps,
-                        c.Tvq
+                        c.Tvq,
+                        c.IsActive
                     }),
 
                     MerchantProducts = m.MerchantProducts.Select(mp => new
@@ -77,7 +78,8 @@ static partial class Program
                     c.Id,
                     c.Name,
                     c.Tps,
-                    c.Tvq
+                    c.Tvq,
+                    c.IsActive
                 }),
 
                 MerchantProducts = merchant.MerchantProducts

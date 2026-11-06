@@ -72,8 +72,8 @@
                                 <th>Nom</th>
                                 <th>TPS (5%)</th>
                                 <th>TVQ (9.975%)</th>
+                                <th>Statut</th>
                                 <th>Produits</th>
-                                <th>Actif</th>
                                 <th class="text-end">Actions</th>
                             </tr>
                         </thead>
@@ -629,7 +629,8 @@
                     Id = editingCategory.Id,
                     Name = currentCategoryName.Trim(),
                     Tps = currentCategoryTps,
-                    Tvq = currentCategoryTvq
+                    Tvq = currentCategoryTvq,
+                    IsActive = editingCategory.IsActive
                 };
 
                 var response = await Http.PutAsJsonAsync($"api/Categories/{editingCategory.Id}", updated);
@@ -652,7 +653,8 @@
                 {
                     Name = currentCategoryName.Trim(),
                     Tps = currentCategoryTps,
-                    Tvq = currentCategoryTvq
+                    Tvq = currentCategoryTvq,
+                    IsActive = true
                 };
 
                 var response = await Http.PostAsJsonAsync("api/Categories", newCat);
@@ -786,7 +788,8 @@
                     Id = editingProduct.Id,
                     Name = currentProductName.Trim(),
                     PriceDefault = currentProductPriceDefault,
-                    CategoryId = currentProductCategoryId
+                    CategoryId = currentProductCategoryId,
+                    IsActive = editingProduct.IsActive
                 };
 
                 var response = await Http.PutAsJsonAsync("api/Products", updated);
@@ -813,7 +816,8 @@
                 {
                     Name = currentProductName.Trim(),
                     PriceDefault = currentProductPriceDefault,
-                    CategoryId = currentProductCategoryId
+                    CategoryId = currentProductCategoryId,
+                    IsActive = true
                 };
 
                 var response = await Http.PostAsJsonAsync("api/Products", newProduct);

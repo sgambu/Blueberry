@@ -18,6 +18,7 @@ public partial class Category
     public bool Tps { get; set; }
 
     public bool Tvq { get; set; }
+
     public bool IsActive { get; set; }
 
     [InverseProperty("Category")]

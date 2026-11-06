@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Blueberry.DataContext.SqlServer;
@@ -31,6 +31,8 @@ static partial class Program
             }
             existingProduct.Name = product.Name;
             existingProduct.PriceDefault = product.PriceDefault;
+            existingProduct.CategoryId = product.CategoryId;
+            existingProduct.IsActive = product.IsActive;
             await db.SaveChangesAsync();
             return Results.NoContent();
         });

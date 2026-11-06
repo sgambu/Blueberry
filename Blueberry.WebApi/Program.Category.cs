@@ -55,6 +55,7 @@ static partial class Program
             existingCategory.Name = category.Name.Trim();
             existingCategory.Tps = category.Tps;
             existingCategory.Tvq = category.Tvq;
+            existingCategory.IsActive = category.IsActive;
 
             await db.SaveChangesAsync();
             return Results.Ok(existingCategory);
@@ -76,6 +77,7 @@ static partial class Program
             existingCategory.Name = category.Name.Trim();
             existingCategory.Tps = category.Tps;
             existingCategory.Tvq = category.Tvq;
+            existingCategory.IsActive = category.IsActive;
 
             await db.SaveChangesAsync();
             return Results.Ok(existingCategory);
