@@ -1,85 +1,158 @@
 ﻿@page "/manager"
+@layout SelectionLayout
 @inject HttpClient Http
 @inject SelectedMerchantState MerchantState
 @inject NavigationManager Navigation
 
-<h3>Manager</h3>
-<div class="pos-container">
-    <section class="products-panel">
-        @{bool fistTime = true;}
-        @foreach (var category in categories)
-        {
-            @if (merchantProducts.Any(mp => allProducts.Any(p => p.Id == mp.ProductId && p.CategoryId == category.Id) && mp.Stock <= 0))
-            {
-                <p>@category.Name</p>
-                @foreach (var merProduct in merchantProducts)
-                {
-                    Product product = allProducts.FirstOrDefault(p => p.Id == merProduct.ProductId);
-
-                    @if (product != null && product.CategoryId == category.Id)
-                    {
-                        @if (merProduct.Stock <= 0)
-                        {
-                            @if (fistTime)
-                            {
-                                <h3>Attention il ne reste plus de ces produits en stock!</h3>
-                                fistTime = false;
-                            }
-                            <div style="color:red; margin-left:20px;">
-                                <p>@product.Name   Prix: @merProduct.Price.ToString("C")</p>
-                            </div>
-                        }
-                    }
-                }
-            }
-        }       
-        @{fistTime = true;}
-        
-        @foreach (var category in categories)
-        {
-            @if (merchantProducts.Any(mp => allProducts.Any(p => p.Id == mp.ProductId && p.CategoryId == category.Id) && mp.Stock > 0 && mp.Stock < 6))
-            {
-                <p>@category.Name</p>
-                @foreach (var merProduct in merchantProducts)
-                {
-                    Product product = allProducts.FirstOrDefault(p => p.Id == merProduct.ProductId);
-
-                    @if (product != null && product.CategoryId == category.Id)
-                    {
-                        @if (merProduct.Stock > 0 && merProduct.Stock < 6)
-                        {
-                            @if (fistTime)
-                            {
-                                <h3>Attention il ne reste que peu de produits en stock!</h3>
-                                fistTime = false;
-                            }
-                            <div style="color:cadetblue; margin-left:20px;">
-                                <p>@product.Name   Prix: @merProduct.Price.ToString("C")   Quantité en stock: @merProduct.Stock</p>
-                            </div>
-                        }
-                    }
-                }
-            }
-        }
-        <button @onclick="EditProduct">
-            Modifier les produits
-        </button>
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <span class="alert-icon">⚠️</span>
-                <div><strong>Attention :</strong> @errorMessage</div>
-                <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
+<div class="categories-page manager-page">
+    <header class="page-header">
+        <div class="header-content">
+            <div class="header-left">
+                <button class="btn-back" @onclick="GoToStore" title="Retour au tableau de bord du magasin">
+                    <span class="back-arrow">←</span> Retour au Magasin
+                </button>
+                <h2 class="page-title">Gestionnaire des Stocks</h2>
+                <p class="page-subtitle">Surveillez les alertes de rupture et réapprovisionnez vos stocks.</p>
             </div>
-        }
+            <div class="header-right">
+                <button class="btn btn-light fw-bold" @onclick="EditProduct">
+                    ✏️ Modifier les produits (prix et stocks)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span class="alert-icon">⚠️</span>
+            <div><strong>Attention :</strong> @errorMessage</div>
+            <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @{
+        var outOfStockList = (allProducts != null)
+            ? merchantProducts.Where(mp => mp.Stock <= 0).ToList()
+            : new List<MerchantProduct>();
+
+        var lowStockList = (allProducts != null)
+            ? merchantProducts.Where(mp => mp.Stock > 0 && mp.Stock < 6).ToList()
+            : new List<MerchantProduct>();
+    }
+
+    <!-- Ruptures de Stock -->
+    <section class="card-panel mb-4 border-danger">
+        <div class="panel-header bg-danger-subtle">
+            <div class="panel-title-group">
+                <h3 class="text-danger fw-bold">⚠️ Ruptures de Stock (0 unité restante)</h3>
+                <span class="badge bg-danger text-white">@outOfStockList.Count produit(s)</span>
+            </div>
+        </div>
+
+        <div class="form-body p-0">
+            @if (outOfStockList.Count == 0)
+            {
+                <div class="empty-state p-4 text-center text-muted">
+                    <p class="mb-0">✅ Aucune rupture de stock détectée dans votre inventaire.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table categories-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th>Catégorie</th>
+                                <th>Prix Magasin</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var merProduct in outOfStockList)
+                            {
+                                var product = allProducts?.FirstOrDefault(p => p.Id == merProduct.ProductId);
+                                if (product != null)
+                                {
+                                    var category = categories.FirstOrDefault(c => c.Id == product.CategoryId);
+                                    <tr>
+                                        <td class="col-name"><strong>@product.Name</strong></td>
+                                        <td><span class="badge badge-none">@(category?.Name ?? "N/A")</span></td>
+                                        <td class="col-price">@merProduct.Price.ToString("C")</td>
+                                        <td><span class="badge bg-danger text-white">Rupture (0 en stock)</span></td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
     </section>
+
+    <!-- Stock Faible -->
+    <section class="card-panel mb-4 border-warning">
+        <div class="panel-header bg-warning-subtle">
+            <div class="panel-title-group">
+                <h3 class="text-warning-emphasis fw-bold">📦 Alerte Stock Faible (Moins de 6 unités)</h3>
+                <span class="badge bg-warning text-dark">@lowStockList.Count produit(s)</span>
+            </div>
+        </div>
+
+        <div class="form-body p-0">
+            @if (lowStockList.Count == 0)
+            {
+                <div class="empty-state p-4 text-center text-muted">
+                    <p class="mb-0">✅ Tous vos autres articles ont un niveau de stock adéquat.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table categories-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th>Catégorie</th>
+                                <th>Prix Magasin</th>
+                                <th>Quantité en stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var merProduct in lowStockList)
+                            {
+                                var product = allProducts?.FirstOrDefault(p => p.Id == merProduct.ProductId);
+                                if (product != null)
+                                {
+                                    var category = categories.FirstOrDefault(c => c.Id == product.CategoryId);
+                                    <tr>
+                                        <td class="col-name"><strong>@product.Name</strong></td>
+                                        <td><span class="badge badge-none">@(category?.Name ?? "N/A")</span></td>
+                                        <td class="col-price">@merProduct.Price.ToString("C")</td>
+                                        <td><span class="badge badge-tvq fw-bold">@merProduct.Stock restante(s)</span></td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+
+    <div class="d-flex justify-content-end gap-3 mt-3">
+        <button class="btn btn-outline-secondary" @onclick="GoToStore">
+            Retour au Magasin
+        </button>
+        <button class="btn btn-primary" @onclick="EditProduct">
+            ✏️ Réapprovisionner / Modifier les produits
+        </button>
+    </div>
 </div>
-
-
 
 @code {
     private IEnumerable<Product>? allProducts;
-    private int quantityToAdd = 0;
     private List<MerchantProduct> merchantProducts = new();
     private List<Category> categories = new();
     private string? errorMessage;
@@ -89,7 +162,7 @@
         try
         {
             allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products");
-            merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
+            merchantProducts = MerchantState.SelectedMerchant.MerchantProducts?.ToList() ?? new();
             categories = await Http.GetFromJsonAsync<List<Category>>("api/Categories") ?? new();
         }
         catch (Exception ex)
@@ -100,6 +173,19 @@
 
     private void EditProduct()
     {
-        Navigation.NavigateTo("/edit-product");
+        var mId = MerchantState.SelectedMerchant?.Id;
+        if (mId > 0)
+        {
+            Navigation.NavigateTo($"/edit-product?from=manager&merchantId={mId}");
+        }
+        else
+        {
+            Navigation.NavigateTo("/edit-product?from=manager");
+        }
+    }
+
+    private void GoToStore()
+    {
+        Navigation.NavigateTo("/store");
     }
 }

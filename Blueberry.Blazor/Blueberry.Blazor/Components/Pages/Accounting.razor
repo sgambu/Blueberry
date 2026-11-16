@@ -1,84 +1,151 @@
-﻿@page "/accounting"
+@page "/accounting"
 @attribute [StreamRendering]
+@layout SelectionLayout
 @inject HttpClient Http
 @inject SelectedMerchantState MerchantState
+@inject NavigationManager Navigation
 
-<h3>Accounting</h3>
-<section class="form-section">
-    <button @onclick="GetTotalSalesByDay">Total des ventes par jours</button>
-    <button @onclick="TotalByProduct">Total des ventes de produits</button>
-    <button @onclick="TotalSalesByDay">TotalSalesByDay</button>
-</section>  
+<div class="categories-page accounting-page">
+    <header class="page-header">
+        <div class="header-content">
+            <div class="header-left">
+                <button class="btn-back" @onclick="GoToStore" title="Retour au tableau de bord du magasin">
+                    <span class="back-arrow">←</span> Retour au Magasin
+                </button>
+                <h2 class="page-title">Comptabilité & Rapports</h2>
+                <p class="page-subtitle">Consultez l'historique et les statistiques de ventes de votre magasin.</p>
+            </div>
+        </div>
+    </header>
 
-<section class="form-section">
+    <!-- Barre d'onglets / filtres -->
+    <section class="card-panel mb-4">
+        <div class="panel-header">
+            <div class="panel-title-group">
+                <h3>Sélectionner un rapport</h3>
+            </div>
+        </div>
+        <div class="form-body d-flex gap-3 flex-wrap">
+            <button class="btn @(showSalesByDay ? "btn-primary" : "btn-outline-primary")" @onclick="GetTotalSalesByDay">
+                📅 Total des ventes par jour
+            </button>
+            <button class="btn @(showSalesByProduct ? "btn-primary" : "btn-outline-primary")" @onclick="TotalByProduct">
+                📦 Quantité vendue par produit
+            </button>
+        </div>
+    </section>
+
+    <!-- Rapport : Ventes par jour -->
     @if (showSalesByDay)
     {
-        <section class="form-section">
-            <h3>Total des ventes par jour</h3>
+        <section class="card-panel list-panel mb-4">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <h3>Total des Ventes par Jour</h3>
+                    <span class="badge count-badge">@salesByDay.Count jour(s)</span>
+                </div>
+            </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var sale in salesByDay)
-                    {
+            <div class="table-responsive">
+                <table class="table categories-table align-middle">
+                    <thead>
                         <tr>
-                            <td>@sale.DateSales</td>
-                            <td>@sale.Total</td>
+                            <th>Date de vente</th>
+                            <th>Total des Ventes</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @if (salesByDay.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="2" class="text-center text-muted p-4">Aucune vente enregistrée pour ce magasin.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var sale in salesByDay)
+                            {
+                                <tr>
+                                    <td class="col-name"><strong>@sale.DateSales</strong></td>
+                                    <td class="col-price">@sale.Total.ToString("C")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
         </section>
     }
-</section>
 
-<section class="form-section">
+    <!-- Rapport : Ventes par produit -->
     @if (showSalesByProduct)
     {
-        <section class="form-section">
-            <h3>Quantité vendue par produit</h3>
+        <section class="card-panel list-panel mb-4">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <h3>Quantité Vendue par Produit</h3>
+                    <span class="badge count-badge">@salesByProduct.Count produit(s)</span>
+                </div>
+            </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nom</th>
-                        <th>Quantité</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var sale in salesByProduct)
-                    {
+            <div class="table-responsive">
+                <table class="table categories-table align-middle">
+                    <thead>
                         <tr>
-                            <td>@sale.Name</td>
-                            <td>@sale.Quantity</td>
+                            <th>Nom du Produit</th>
+                            <th>Quantité Vendue</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @if (salesByProduct.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="2" class="text-center text-muted p-4">Aucun article vendu pour le moment.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var sale in salesByProduct)
+                            {
+                                <tr>
+                                    <td class="col-name"><strong>@(sale.Name ?? "Produit inconnu")</strong></td>
+                                    <td>
+                                        <span class="badge badge-active fs-6">@sale.Quantity unité(s)</span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
         </section>
     }
-</section>
+</div>
 
 @code {
-    private List<Sale> sales;
+    private List<Sale> sales = new();
     private List<SalesByDay> salesByDay = new();
     private List<ProductByQuantity> salesByProduct = new();
     private List<Product> allProduct = new();
     private int merchantId;
-    private bool showSalesByDay = false;
+    private bool showSalesByDay = true;
     private bool showSalesByProduct = false;
     private bool showSalesByDaySummary = false;
 
     protected override async Task OnInitializedAsync()
     {
-        merchantId = MerchantState.SelectedMerchant.Id;
-        sales = await Http.GetFromJsonAsync<List<Sale>>($"api/Sales/{merchantId}");
-        allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products");
+        try
+        {
+            merchantId = MerchantState.SelectedMerchant.Id;
+            sales = await Http.GetFromJsonAsync<List<Sale>>($"api/Sales/{merchantId}") ?? new();
+            allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
+            GetTotalSalesByDay();
+        }
+        catch
+        {
+            sales = new();
+            allProduct = new();
+        }
     }
 
     private void GetTotalSalesByDay()
@@ -86,15 +153,6 @@
         showSalesByDay = true;
         showSalesByProduct = false;
         showSalesByDaySummary = false;
-
-        HashSet<string> activeDates = new HashSet<string>();
-
-        foreach (var sale in sales)
-        {
-            var date = sale.Date;
-            activeDates.Add(date.ToString("dd/MM/yyyy")); // ignore automatiquement les doublons
-
-        }
 
         salesByDay = sales
             .GroupBy(s => s.Date.ToString("dd/MM/yyyy"))
@@ -108,10 +166,9 @@
 
     public class SalesByDay
     {
-        public string DateSales { get; set; }
+        public string DateSales { get; set; } = "";
         public decimal Total { get; set; }
     }
-
 
     private void TotalByProduct()
     {
@@ -124,7 +181,6 @@
             .GroupBy(si => si.ProductId)
             .Select(g => new ProductByQuantity
             {
-                //ProductId = g.Key,
                 Name = allProduct.FirstOrDefault(p => p.Id == g.Key)?.Name,
                 Quantity = g.Sum(si => si.Quantity)
             })
@@ -133,36 +189,12 @@
 
     public class ProductByQuantity
     {
-        public string Name { get; set; }
+        public string? Name { get; set; }
         public int Quantity { get; set; }
     }
 
-    private void TotalSalesByDay()
+    private void GoToStore()
     {
-        showSalesByDay = false;
-        showSalesByProduct = false;
-        showSalesByDaySummary = true;
-
-        /*Total des ventes, nombre de vente et d'item vendu pour un jour
-        Console.Write("Entrez une date (format: yyyy-MM-dd) : ");
-        string input = Console.ReadLine();
-
-        DateTime date;
-
-        while (!DateTime.TryParseExact(
-            input,
-            "yyyy-MM-dd",
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.None,
-            out date))
-        {
-            Console.Write("Format invalide. Réessayez (yyyy-MM-dd) : ");
-            input = Console.ReadLine();
-        }
-        var summary = saleService.GetDailySummary(date);
-        Console.WriteLine("Jour: {0,6:D}", date);
-        Console.WriteLine("Nombre de vente: " + summary.NumberOfSales + " Total des ventes: " + summary.TotalAmount + " nombre d'item vendu: " + summary.NumberOfItems);
-        Console.WriteLine();
-        }*/
+        Navigation.NavigateTo("/store");
     }
 }

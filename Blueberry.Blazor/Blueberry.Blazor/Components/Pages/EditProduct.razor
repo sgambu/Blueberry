@@ -1,108 +1,45 @@
 @page "/edit-product"
 @layout SelectionLayout
+@using System.Globalization
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject SelectedMerchantState MerchantState
+@inject IJSRuntime JS
 
 <div class="page-container">
+<NavigationLock OnBeforeInternalNavigation="OnBeforeInternalNavigation" ConfirmExternalNavigation="@hasUnsavedChanges" />
+
+<div class="categories-page edit-product-page">
     <header class="page-header">
         <div class="header-content">
             <div class="header-left">
-                <button class="btn-back" @onclick="GoBackToMerchantCategory" title="Retour à la gestion des stocks">
-                    <span class="back-arrow">←</span> Retour au Merchant Category
-                </button>
-                <button class="btn-back" @onclick="GoBackToManager" title="Retour à la gestion des stocks">
-                    <span class="back-arrow">←</span> Retour au Manager
-                </button>
-                <h2 class="page-title">Modifier les produits</h2>
-                <p class="page-subtitle">Ajustez les prix et réapprovisionnez les stocks du magasin</p>
+                @if (string.Equals(FromPage, "manager", StringComparison.OrdinalIgnoreCase))
+                {
+                    <button class="btn-back" @onclick="GoBackToManager" title="Retour au Manager">
+                        <span class="back-arrow">←</span> Retour au Manager
+                    </button>
+                }
+                else
+                {
+                    <button class="btn-back" @onclick="GoBackToMerchantCategory" title="Retour à la gestion du marchand">
+                        <span class="back-arrow">←</span> Retour au Merchant Category
+                    </button>
+                }
+                <h2 class="page-title">Modifier les Produits du Magasin</h2>
+                <p class="page-subtitle">Ajustez les prix de vente et réapprovisionnez les quantités en stock.</p>
             </div>
         </div>
     </header>
 
-@if (isLoading)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <section class="form-section">
-        <h4>Catégories et produits</h4>
-
-        <div class="category-selection">
-            <label for="category">Catégorie :</label>
-                <select id="category" @bind="selectedCategoryId">
-                    @if (merchantActiveCategories is not null)
-                    {
-                        @foreach (var category in merchantActiveCategories)
-                        {
-                            <option value="@category.Id">
-                                @category.Name
-                            </option>
-                        }
-                    }
-                </select>
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <span class="alert-icon">✓</span>
+            <div><strong>Succès !</strong> @successMessage</div>
+            <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => successMessage = null"></button>
         </div>
-    </section>
-    <section class="form-section">
-        <table class="product-table">
-            <thead>
-                <tr>
-                    <th>Nom</th>
-                    <th>Prix default</th>
-                    <th>Taxe</th>
-                    <th>Prix</th>
-                    <th>Quantité</th>               
-                    <th>Ajout Quantité</th>
-                </tr>
-            </thead>
+    }
 
-            <tbody>
-                @foreach (var marProduct in selectedMerchant.MerchantProducts)
-                {
-                    Product product = allActiveProduct.FirstOrDefault(p => p.Id == marProduct.ProductId);
-                    @if (product != null && product.CategoryId == selectedCategoryId)
-                    {
-                        Category cat = merchantActiveCategories.FirstOrDefault(c => c.Id == selectedCategoryId);
-                        var taxeDescription = "";
-                        @if (cat is not null)
-                        {
-                            @if (cat.Tps)
-                            {
-                                taxeDescription += "TPS ";
-                            }
-
-                            @if (cat.Tvq)
-                            {
-                                taxeDescription += "TVQ";
-                            }
-
-                            <tr @key="product.Id">
-                                <td>@product.Name</td>
-                                <td>@product.PriceDefault</td>
-                                <td>@taxeDescription</td>
-                                <td>
-                                    <textarea value="@marProduct.Price"
-                                              @onchange="e => UpdatePrice(product, e.Value?.ToString())">
-                                    </textarea>
-                                </td>  
-
-                                <td>@marProduct.Stock</td>  
-                                <td>
-                                    <textarea value=""
-                                              @onchange="e => UpdateQuantity(product, e.Value?.ToString())"
-                                              placeholder="Entrez la quantité à ajouter">
-                                    </textarea>
-                                </td>
-                            </tr>
-                        }
-                    }
-                }
-            </tbody>
-        </table>
-    </section>
-    <button @onclick="() => SaveChange()">Sauvegarder les changements</button>
-    <MessageDialog @ref="messageDialog" />
     @if (!string.IsNullOrEmpty(errorMessage))
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -111,10 +48,234 @@ else
             <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
         </div>
     }
-}
+
+    @if (hasUnsavedChanges)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <span class="alert-icon">⚠️</span>
+            <div>
+                <strong>Modifications non enregistrées :</strong> Vous avez modifié @productModifications.Count produit(s). Pensez à cliquer sur <strong>« Sauvegarder les changements »</strong> !
+            </div>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="loading-state">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p>Chargement des produits en cours...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Filtre de catégorie -->
+        <section class="card-panel mb-4">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <h3>Filtrer par Catégorie</h3>
+                    <span class="badge count-badge">@(merchantActiveCategories?.Count ?? 0) catégorie(s)</span>
+                </div>
+            </div>
+
+            <div class="form-body">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <label for="category" class="form-label fw-bold mb-0">Catégorie :</label>
+                    <select id="category" class="form-select" style="max-width: 380px;" @bind="selectedCategoryId">
+                        @if (merchantActiveCategories is not null)
+                        {
+                            @foreach (var category in merchantActiveCategories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        }
+                    </select>
+
+                    @{
+                        var currentCat = merchantActiveCategories?.FirstOrDefault(c => c.Id == selectedCategoryId);
+                    }
+                    @if (currentCat != null)
+                    {
+                        <div class="d-flex gap-2 align-items-center">
+                            @if (currentCat.Tps)
+                            {
+                                <span class="badge badge-tps">TPS active (5%)</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-none">TPS exonérée</span>
+                            }
+
+                            @if (currentCat.Tvq)
+                            {
+                                <span class="badge badge-tvq">TVQ active (9.975%)</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-none">TVQ exonérée</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+
+        <!-- Tableau des produits -->
+        <section class="card-panel list-panel mb-4">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <h3>Produits en Magasin</h3>
+                    @{
+                        var productsInSelectedCat = selectedMerchant.MerchantProducts?
+                            .Where(mp => allActiveProduct.Any(p => p.Id == mp.ProductId && p.CategoryId == selectedCategoryId))
+                            .ToList() ?? new List<MerchantProduct>();
+                    }
+                    <span class="badge count-badge">@productsInSelectedCat.Count article(s)</span>
+                </div>
+                @if (hasUnsavedChanges)
+                {
+                    <span class="badge bg-warning text-dark fw-bold">
+                        @productModifications.Count modification(s) en attente
+                    </span>
+                }
+            </div>
+
+            @if (productsInSelectedCat.Count == 0)
+            {
+                <div class="empty-state p-4 text-center text-muted">
+                    <p class="mb-0">Aucun produit actif n'est assigné à ce magasin pour la catégorie sélectionnée.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table categories-table align-middle" style="min-width: 860px;">
+                        <thead>
+                            <tr>
+                                <th style="min-width: 180px;">Nom</th>
+                                <th style="width: 130px; min-width: 130px;">Prix par défaut</th>
+                                <th style="width: 130px; min-width: 130px;">Taxes</th>
+                                <th style="width: 175px; min-width: 175px;">Prix Magasin</th>
+                                <th style="width: 140px; min-width: 140px;">Stock actuel</th>
+                                <th style="width: 165px; min-width: 165px;">Ajouter Quantité</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var marProduct in productsInSelectedCat)
+                            {
+                                Product? product = allActiveProduct.FirstOrDefault(p => p.Id == marProduct.ProductId);
+                                if (product != null)
+                                {
+                                    Category? cat = merchantActiveCategories?.FirstOrDefault(c => c.Id == selectedCategoryId);
+                                    var mod = productModifications.FirstOrDefault(pm => pm.ProductId == product.Id);
+                                    var isModified = mod != null;
+                                    var displayPrice = mod?.NewPrice ?? marProduct.Price;
+
+                                    <tr @key="product.Id" class="@(isModified ? "selected-row" : "")">
+                                        <td class="col-name" style="min-width: 180px;">
+                                            <strong>@product.Name</strong>
+                                            @if (isModified)
+                                            {
+                                                <span class="badge badge-active ms-2">Modifié</span>
+                                            }
+                                        </td>
+                                        <td class="text-muted" style="width: 130px;">
+                                            @product.PriceDefault.ToString("C")
+                                        </td>
+                                        <td style="width: 130px;">
+                                            @if (cat != null)
+                                            {
+                                                <div class="d-flex gap-1 flex-wrap">
+                                                    @if (cat.Tps) { <span class="badge badge-tps">TPS</span> }
+                                                    @if (cat.Tvq) { <span class="badge badge-tvq">TVQ</span> }
+                                                    @if (!cat.Tps && !cat.Tvq) { <span class="badge badge-none">Exonéré</span> }
+                                                </div>
+                                            }
+                                        </td>
+                                        <td style="width: 175px; min-width: 175px;">
+                                            <div class="input-group input-group-sm" style="width: 155px; min-width: 155px; flex-wrap: nowrap;">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number"
+                                                       step="0.01"
+                                                       min="0"
+                                                       class="form-control"
+                                                       style="min-width: 95px;"
+                                                       value="@displayPrice.ToString("0.00", CultureInfo.InvariantCulture)"
+                                                       @onchange="e => UpdatePrice(product, e.Value?.ToString())" />
+                                            </div>
+                                        </td>
+                                        <td style="width: 140px; min-width: 140px;">
+                                            <span class="badge @(marProduct.Stock <= 0 ? "bg-danger text-white" : (marProduct.Stock < 6 ? "badge-tvq" : "badge-active"))">
+                                                @marProduct.Stock en stock
+                                            </span>
+                                            @if (mod?.QuantityToAdd > 0)
+                                            {
+                                                <small class="text-success fw-bold ms-1">(+@mod.QuantityToAdd)</small>
+                                            }
+                                        </td>
+                                        <td style="width: 165px; min-width: 165px;">
+                                            <div class="input-group input-group-sm" style="width: 145px; min-width: 145px; flex-wrap: nowrap;">
+                                                <span class="input-group-text">+</span>
+                                                <input type="number"
+                                                       min="0"
+                                                       class="form-control"
+                                                       style="min-width: 85px;"
+                                                       placeholder="Quantité"
+                                                       value="@(mod?.QuantityToAdd > 0 ? mod.QuantityToAdd.ToString() : "")"
+                                                       @onchange="e => UpdateQuantity(product, e.Value?.ToString())" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <!-- Actions de sauvegarde -->
+            <div class="form-actions d-flex gap-3 align-items-center flex-wrap p-3 bg-light border-top">
+                <button class="@(hasUnsavedChanges ? "btn btn-save-modified" : "btn btn-primary")"
+                        @onclick="() => SaveChange()">
+                    @(hasUnsavedChanges ? "⚠️ 💾 Sauvegarder les changements (Modifications en attente !)" : "💾 Sauvegarder les changements")
+                </button>
+
+                @if (string.Equals(FromPage, "manager", StringComparison.OrdinalIgnoreCase))
+                {
+                    <button class="btn btn-outline-secondary" @onclick="GoBackToManager">
+                        Annuler / Retour au Manager
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-outline-secondary" @onclick="GoBackToMerchantCategory">
+                        Annuler / Retour au Merchant Category
+                    </button>
+                }
+
+                @if (hasUnsavedChanges)
+                {
+                    <span class="text-warning fw-bold ms-2">
+                        ⚠️ Vous avez des modifications non enregistrées !
+                    </span>
+                }
+            </div>
+        </section>
+    }
+
+    <MessageDialog @ref="messageDialog" />
+</div>
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "from")]
+    public string? FromPage { get; set; }
+
+    [SupplyParameterFromQuery(Name = "merchantId")]
+    public int? QueryMerchantId { get; set; }
+
     private void GoBackToManager()
     {
         Navigation.NavigateTo("/manager");
@@ -122,33 +283,133 @@ else
 
     private void GoBackToMerchantCategory()
     {
-        Navigation.NavigateTo($"/marchant-category/{selectedMerchant.Id}");
+        if (selectedMerchant?.Id > 0)
+        {
+            Navigation.NavigateTo($"/marchant-category/{selectedMerchant.Id}");
+        }
+        else
+        {
+            Navigation.NavigateTo("/marchant-category");
+        }
     }
 
     private Merchant selectedMerchant = new();
     private List<Product> allActiveProduct = new();
-    private ICollection<Category> merchantActiveCategories;
+    private List<Category> allCategories = new();
+    private List<Category> merchantActiveCategories = new();
     private int selectedCategoryId = 0;
     private MessageDialog? messageDialog;
     private List<ProductModification> productModifications = new();
     private string? errorMessage;
+    private string? successMessage;
     private bool isLoading = true;
+
+    private bool hasUnsavedChanges => productModifications.Any();
+
+    private async Task OnBeforeInternalNavigation(LocationChangingContext context)
+    {
+        if (hasUnsavedChanges)
+        {
+            var isConfirmed = await JS.InvokeAsync<bool>("confirm", "Attention : Vous avez des modifications de prix ou de stock non enregistrées. Voulez-vous vraiment quitter la page sans sauvegarder ?");
+            if (!isConfirmed)
+            {
+                context.PreventNavigation();
+            }
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
         isLoading = true;
+        errorMessage = null;
+
         try
         {
-            selectedMerchant = MerchantState.SelectedMerchant;
-            
+            // Déterminer l'identifiant du marchand depuis l'URL ou MerchantState
+            int merchantId = QueryMerchantId ?? MerchantState.SelectedMerchant?.Id ?? 0;
+
+            if (merchantId > 0)
+            {
+                selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchantId}") ?? new();
+                MerchantState.SelectedMerchant = selectedMerchant;
+            }
+            else if (MerchantState.SelectedMerchant != null && MerchantState.SelectedMerchant.Id > 0)
+            {
+                selectedMerchant = MerchantState.SelectedMerchant;
+            }
+            else
+            {
+                // Fallback de secours : charger les marchands et prendre le premier
+                var merchants = await Http.GetFromJsonAsync<List<Merchant>>("api/Merchants");
+                if (merchants != null && merchants.Any())
+                {
+                    selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchants.First().Id}") ?? new();
+                    MerchantState.SelectedMerchant = selectedMerchant;
+                }
+            }
+
+            // Charger les produits actifs
             List<Product> allProduct = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new();
             allActiveProduct = allProduct.Where(p => p.IsActive).ToList();
-            ICollection<Category> merchantCategories = selectedMerchant.Categories;
-            merchantActiveCategories = merchantCategories.Where(c => c.IsActive).ToList();
 
-            if (merchantActiveCategories is not null && merchantActiveCategories.Any())
+            // Charger toutes les catégories actives
+            allCategories = await Http.GetFromJsonAsync<List<Category>>("api/Categories") ?? new();
+            var allActiveCategories = allCategories.Where(c => c.IsActive).ToList();
+
+            // Construire la liste des catégories actives du magasin :
+            // 1. Catégories directement associées au marchand
+            var activeCats = new List<Category>();
+            if (selectedMerchant.Categories != null)
             {
-                selectedCategoryId = merchantCategories.First().Id;
+                activeCats.AddRange(selectedMerchant.Categories.Where(c => c.IsActive));
+            }
+
+            // 2. Catégories déduites des produits vendus par ce marchand
+            if (selectedMerchant.MerchantProducts != null && selectedMerchant.MerchantProducts.Any())
+            {
+                var productCatIds = allActiveProduct
+                    .Where(p => selectedMerchant.MerchantProducts.Any(mp => mp.ProductId == p.Id))
+                    .Select(p => p.CategoryId)
+                    .Distinct()
+                    .ToHashSet();
+
+                foreach (var catId in productCatIds)
+                {
+                    if (!activeCats.Any(c => c.Id == catId))
+                    {
+                        var cat = allActiveCategories.FirstOrDefault(c => c.Id == catId);
+                        if (cat != null)
+                        {
+                            activeCats.Add(cat);
+                        }
+                    }
+                }
+            }
+
+            // 3. Fallback : si aucune catégorie trouvée, afficher toutes les catégories actives
+            if (activeCats.Count == 0)
+            {
+                activeCats = allActiveCategories;
+            }
+
+            merchantActiveCategories = activeCats;
+
+            // Sélectionner la catégorie par défaut
+            if (merchantActiveCategories.Any())
+            {
+                if (!merchantActiveCategories.Any(c => c.Id == selectedCategoryId))
+                {
+                    selectedCategoryId = merchantActiveCategories.First().Id;
+                }
+            }
+            else
+            {
+                selectedCategoryId = 0;
             }
         }
         catch (Exception ex)
@@ -163,7 +424,7 @@ else
 
     private void UpdatePrice(Product product, string? newPriceString)
     {
-        if (decimal.TryParse(newPriceString, out decimal newPrice))
+        if (TryParseDecimal(newPriceString, out decimal newPrice))
         {
             var existingModification = productModifications.FirstOrDefault(pm => pm.ProductId == product.Id);
             if (existingModification != null)
@@ -198,11 +459,51 @@ else
                     QuantityToAdd = newQuantity
                 });
             }
-        }    
+        }
+        else if (string.IsNullOrWhiteSpace(newQuantityString))
+        {
+            var existingModification = productModifications.FirstOrDefault(pm => pm.ProductId == product.Id);
+            if (existingModification != null)
+            {
+                existingModification.QuantityToAdd = 0;
+            }
+        }
+    }
+
+    private static bool TryParseDecimal(string? input, out decimal result)
+    {
+        result = 0m;
+        if (string.IsNullOrWhiteSpace(input))
+            return false;
+
+        string trimmed = input.Trim();
+
+        // 1. Essai avec InvariantCulture (séparateur point '.', standard pour input type="number")
+        if (decimal.TryParse(trimmed, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out result))
+            return true;
+
+        // 2. Essai avec CurrentCulture (séparateur virgule ',' ou point selon locale système)
+        if (decimal.TryParse(trimmed, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.CurrentCulture, out result))
+            return true;
+
+        // 3. Normalisation virgule vers point
+        string normalizedDot = trimmed.Replace(',', '.');
+        if (decimal.TryParse(normalizedDot, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out result))
+            return true;
+
+        // 4. Normalisation point vers virgule avec culture fr-CA
+        string normalizedComma = trimmed.Replace('.', ',');
+        if (decimal.TryParse(normalizedComma, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.GetCultureInfo("fr-CA"), out result))
+            return true;
+
+        return false;
     }
 
     private async Task SaveChange()
     {
+        errorMessage = null;
+        successMessage = null;
+
         try
         {
             foreach (var modification in productModifications)
@@ -213,14 +514,17 @@ else
                     throw new Exception($"Erreur lors de la mise à jour du produit avec l'ID {modification.ProductId}. Statut : {response.StatusCode}");
                 }
             }
+
             selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{selectedMerchant.Id}") ?? new();
             MerchantState.SelectedMerchant = selectedMerchant;
             productModifications.Clear();
+
+            successMessage = "Les produits ont été mis à jour avec succès !";
+
             if (messageDialog is not null)
             {
                 messageDialog.Title = "Sauvegarde réussie";
-                messageDialog.Message = "Les produits ont été sauvegardés avec succès!";
-
+                messageDialog.Message = "Les produits ont été sauvegardés avec succès !";
                 await messageDialog.ShowAsync();
             }
         }
@@ -230,5 +534,3 @@ else
         }
     }
 }
-
-

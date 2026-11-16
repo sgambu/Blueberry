@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Database/">
+    <File Path="CreateDatabase.sql" />
+  </Folder>
   <Folder Name="/Éléments de solution/">
     <File Path=".gitignore" />
   </Folder>
