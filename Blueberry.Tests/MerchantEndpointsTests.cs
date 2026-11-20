@@ -4,6 +4,7 @@ using Blueberry.EntityModels.SqlServer.DTOs;
 using System.Net;
 using System.Net.Http.Json;
 using Xunit;
+using Blueberry.Blazor;
 
 namespace Blueberry.Tests;
 
