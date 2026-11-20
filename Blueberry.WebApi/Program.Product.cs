@@ -6,7 +6,7 @@ using Blueberry.EntityModels;
 using System.ComponentModel.DataAnnotations;
 using static System.Net.WebRequestMethods;
 
-static partial class Program
+public static class ProductEndpoints
 {
     internal static void MapProductEndpoints(this WebApplication app)
     {

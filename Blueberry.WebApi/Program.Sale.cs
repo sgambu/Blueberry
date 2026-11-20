@@ -7,7 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Net.ServerSentEvents;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Net.WebRequestMethods;
-static partial class Program
+public static class SaleEndpoints
 {
     internal static void MapSaleEndpoints(this WebApplication app)
     {

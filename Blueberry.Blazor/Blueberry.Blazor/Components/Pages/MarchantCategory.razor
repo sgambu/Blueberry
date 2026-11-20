@@ -58,6 +58,14 @@
                 @if (merchantId != 0)
                 {
                     <span class="badge count-badge">Magasin #@merchantId</span>
+                    @if (selectedMerchant.IsActive)
+                    {
+                        <span class="badge badge-active ms-2">Actif</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary text-white ms-2">Inactif</span>
+                    }
                 }
             </div>
         </div>
@@ -81,16 +89,39 @@
                            placeholder="ex: (514) 555-0199"
                            @bind="selectedMerchant.Phone" />
                 </div>
+
+                @if (merchantId != 0)
+                {
+                    <div class="col-12">
+                        <div class="form-check form-switch mt-1">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="merchantActiveSwitch"
+                                   @bind="selectedMerchant.IsActive" />
+                            <label class="form-check-label fw-bold" for="merchantActiveSwitch">
+                                @(selectedMerchant.IsActive ? "Marchand actif" : "Marchand inactif")
+                            </label>
+                        </div>
+                    </div>
+                }
             </div>
 
-            <div class="form-actions mt-4">
-                <button class="btn btn-primary" @onclick="SaveMerchantChanges">
-                    💾 Sauvegarder les informations
-                </button>
-                @if (id is not null)
+            <div class="form-actions mt-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-primary" @onclick="SaveMerchantChanges">
+                        💾 Sauvegarder les informations
+                    </button>
+                    @if (id is not null)
+                    {
+                        <button class="btn btn-outline-secondary" @onclick="ShowProductInfo">
+                            ℹ️ Informations sur les produits
+                        </button>
+                    }
+                </div>
+                @if (id is not null && merchantId != 0)
                 {
-                    <button class="btn btn-outline-secondary" @onclick="ShowProductInfo">
-                        ℹ️ Informations sur les produits
+                    <button class="btn btn-outline-danger" @onclick="DeleteMerchant" title="Supprimer ou désactiver ce marchand">
+                        🗑️ Supprimer ce marchand
                     </button>
                 }
             </div>
@@ -464,6 +495,48 @@
         else
         {
             Navigation.NavigateTo("/edit-product?from=marchant-category");
+        }
+    }
+
+    private async Task DeleteMerchant()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        var isConfirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Êtes-vous sûr de vouloir supprimer le magasin #{selectedMerchant.Id} ({selectedMerchant.Adresse}) ?\n\nSi ce marchand possède des ventes enregistrées, il sera désactivé pour préserver l'historique.");
+
+        if (!isConfirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/Merchants/{selectedMerchant.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<Blueberry.EntityModels.SqlServer.DTOs.DeleteProductResponse>();
+                var msg = result?.Message ?? "L'opération a été effectuée avec succès.";
+
+                if (messageDialog is not null)
+                {
+                    messageDialog.Title = "Suppression du marchand";
+                    messageDialog.Message = msg;
+                    await messageDialog.ShowAsync();
+                }
+
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Erreur lors de la suppression du marchand : {errorText}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite : {ex.Message}";
         }
     }
 

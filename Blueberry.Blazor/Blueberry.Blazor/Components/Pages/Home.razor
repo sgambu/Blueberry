@@ -3,6 +3,7 @@
 @inject HttpClient Http
 @inject SelectedMerchantState MerchantState
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <div class="home-page">
     @if (!string.IsNullOrEmpty(errorMessage))
@@ -22,18 +23,19 @@
                     <h2 class="stores-title">Choisir un magasin</h2>
                     @if (merchants != null && !isLoading)
                     {
-                        <span class="stores-count-badge">@(merchants.Count) @(merchants.Count == 1 ? "magasin" : "magasins")</span>
+                        var activeCount = merchants.Count(m => m.IsActive);
+                        <span class="stores-count-badge">@activeCount actif(s) / @(merchants.Count) magasin(s)</span>
                     }
                 </div>
                 <p class="stores-subtitle">Sélectionnez un point de vente pour accéder à la caisse ou administrer son catalogue.</p>
             </div>
 
             <div class="stores-actions-group">
+                <button class="btn-manage-categories" @onclick="ManageCategories" title="Gérer les catégories et les produits commun à tous les magasins">
+                    <span class="btn-icon">📁</span> Gérer les catégories et les produits commun à tous les magasins
+                </button>
                 <button class="btn-add-store" @onclick="AddMerchant" title="Créer un nouveau magasin">
                     <span class="btn-icon">＋</span> Ajouter un magasin
-                </button>
-                <button class="btn-manage-categories" @onclick="ManageCategories" title="Gérer les catégories globales">
-                    <span class="btn-icon">📁</span> Gérer les catégories
                 </button>
             </div>
         </div>
@@ -80,10 +82,10 @@
             <div class="stores-grid">
                 @foreach (Merchant merchant in FilteredMerchants)
                 {
-                    <div class="store-card" @onclick="() => SelectMerchant(merchant)" style="cursor: pointer;">
+                    <div class="store-card @(!merchant.IsActive ? "store-card-inactive" : "")" @onclick="() => SelectMerchant(merchant)" style="cursor: pointer;">
                         <div class="store-card-header">
                             <div class="store-badge-group">
-                                <div class="store-avatar-icon">
+                                <div class="store-avatar-icon @(!merchant.IsActive ? "inactive" : "")">
                                     🏪
                                 </div>
                                 <div class="store-number-title">
@@ -91,9 +93,18 @@
                                     <span class="store-id-subtitle">Point de vente</span>
                                 </div>
                             </div>
-                            <span class="store-status-pill">
-                                <span class="store-status-dot"></span> Actif
-                            </span>
+                            @if (merchant.IsActive)
+                            {
+                                <span class="store-status-pill status-active">
+                                    <span class="store-status-dot dot-active"></span> Actif
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="store-status-pill status-inactive">
+                                    <span class="store-status-dot dot-inactive"></span> Inactif
+                                </span>
+                            }
                         </div>
 
                         <div class="store-card-body">
@@ -115,12 +126,24 @@
                         </div>
 
                         <div class="store-card-actions">
-                            <button class="btn-card-select"
-                                    @onclick="() => SelectMerchant(merchant)"
-                                    @onclick:stopPropagation="true"
-                                    title="Ouvrir ce magasin">
-                                Entrer dans le magasin <span>→</span>
-                            </button>
+                            @if (merchant.IsActive)
+                            {
+                                <button class="btn-card-select"
+                                        @onclick="() => SelectMerchant(merchant)"
+                                        @onclick:stopPropagation="true"
+                                        title="Ouvrir ce magasin">
+                                    Entrer dans le magasin <span>→</span>
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn-card-select btn-card-disabled"
+                                        @onclick="() => SelectMerchant(merchant)"
+                                        @onclick:stopPropagation="true"
+                                        title="Ce point de vente est inactif">
+                                    Magasin inactif <span>⚠️</span>
+                                </button>
+                            }
                             <button class="btn-card-modify"
                                     @onclick="() => ModifyMerchant(merchant)"
                                     @onclick:stopPropagation="true"
@@ -189,6 +212,17 @@
     {
         merchant.Adresse = merchant.Adresse ?? "Adresse non disponible";
         MerchantState.SelectedMerchant = merchant;
+
+        if (!merchant.IsActive)
+        {
+            var proceed = await JS.InvokeAsync<bool>("confirm",
+                $"Le magasin #{merchant.Id} est actuellement inactif.\n\nVoulez-vous ouvrir sa configuration pour le réactiver ou modifier ses paramètres ?");
+            if (proceed)
+            {
+                ModifyMerchant(merchant);
+            }
+            return;
+        }
 
         try
         {

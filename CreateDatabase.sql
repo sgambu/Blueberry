@@ -1,8 +1,8 @@
 ﻿
-CREATE DATABASE Blueberry_Test;
+CREATE DATABASE Blueberry;
 GO
 
-USE Blueberry_Test;
+USE Blueberry;
 GO
 
 -- 1. Category
@@ -34,7 +34,8 @@ CREATE TABLE Merchant
 (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     Adresse NVARCHAR(100),
-    Phone NVARCHAR(20)
+    Phone NVARCHAR(20),
+    IsActive BIT NOT NULL
 );
 
 -- 4. MerchantProduct

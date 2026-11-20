@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Blueberry.DataContext.SqlServer;
 using Blueberry.EntityModels;
 
-static partial class Program
+public static class CategoryEndpoints
 {
     internal static void MapCategoryEndpoints(this WebApplication app)
     {

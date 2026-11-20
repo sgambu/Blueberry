@@ -18,6 +18,8 @@ public partial class Merchant
     [StringLength(20)]
     public string? Phone { get; set; }
 
+    public bool IsActive { get; set; }
+
     [InverseProperty("Merchant")]
     public virtual ICollection<MerchantProduct> MerchantProducts { get; set; } = new List<MerchantProduct>();
 

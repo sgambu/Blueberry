@@ -2,12 +2,20 @@ using Blueberry.EntityModels;
 using Blueberry.DataContext.SqlServer;
 using Blueberry.EntityModels.SqlServer.DTOs;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.EntityFrameworkCore;
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Services.AddDbContext<BlueberryContext>();
+    //builder.Services.AddDbContext<BlueberryContext>();
+
+    var connectionString =
+    builder.Configuration.GetConnectionString("Blueberry");
+
+    builder.Services.AddDbContext<BlueberryContext>(options =>
+        options.UseSqlServer(connectionString));
+
     builder.Services.AddHttpLogging();
     builder.Services.Configure<HttpLoggingOptions>(options =>
     {
@@ -41,4 +49,6 @@ catch (Exception ex)
 {
     Console.WriteLine($"An error occurred: {ex.Message}");
 }
+public partial class Program { }
+
 

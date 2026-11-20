@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Runtime.ConstrainedExecution;
 using System.Text;
 using static System.Net.WebRequestMethods;
-static partial class Program
+public static class MerchantEndpoints
 {
     internal static void MapMerchantEndpoints(this WebApplication app)
     {
@@ -23,6 +23,7 @@ static partial class Program
                     m.Id,
                     m.Adresse,
                     m.Phone,
+                    m.IsActive,
 
                     Categories = m.Categories.Select(c => new
                     {
@@ -71,6 +72,7 @@ static partial class Program
                 merchant.Id,
                 merchant.Adresse,
                 merchant.Phone,
+                merchant.IsActive,
 
                 Categories = merchant.Categories
                     .Select(c => new
@@ -95,6 +97,7 @@ static partial class Program
 
         app.MapPost("/api/Merchants", async (BlueberryContext db, Merchant merchant) =>
         {
+            merchant.IsActive = true;
             db.Merchants.Add(merchant);
             await db.SaveChangesAsync();
             return Results.Created($"/api/Merchants/{merchant.Id}", merchant);
@@ -109,9 +112,47 @@ static partial class Program
             }
             merchant.Adresse = updatedMerchant.Adresse;
             merchant.Phone = updatedMerchant.Phone;
-            // Update other properties as needed
+            merchant.IsActive = updatedMerchant.IsActive;
             await db.SaveChangesAsync();
             return Results.NoContent();
+        });
+
+        app.MapDelete("/api/Merchants/{merchantId}", async (int merchantId, BlueberryContext db) =>
+        {
+            var merchant = await db.Merchants
+                .Include(m => m.Categories)
+                .Include(m => m.MerchantProducts)
+                .FirstOrDefaultAsync(m => m.Id == merchantId);
+
+            if (merchant == null)
+            {
+                return Results.NotFound();
+            }
+
+            var hasSales = await db.Sales.AnyAsync(s => s.MerchantId == merchantId);
+
+            if (hasSales)
+            {
+                merchant.IsActive = false;
+                await db.SaveChangesAsync();
+
+                return Results.Ok(new Blueberry.EntityModels.SqlServer.DTOs.DeleteProductResponse
+                {
+                    Message = "Le marchand a été désactivé car il contient des ventes passées."
+                });
+            }
+            else
+            {
+                merchant.Categories.Clear();
+                db.MerchantProducts.RemoveRange(merchant.MerchantProducts);
+                db.Merchants.Remove(merchant);
+                await db.SaveChangesAsync();
+
+                return Results.Ok(new Blueberry.EntityModels.SqlServer.DTOs.DeleteProductResponse
+                {
+                    Message = "Le marchand a été supprimé."
+                });
+            }
         });
 
         app.MapGet("/api/MerchantProducts", async (BlueberryContext db) =>

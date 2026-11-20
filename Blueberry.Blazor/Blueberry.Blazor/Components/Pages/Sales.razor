@@ -155,8 +155,7 @@
     {
         try
         {
-            allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products");
-            int num = allProducts.Count;
+            allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products")?? new List<Product>();
             merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
             merchantCategories = MerchantState.SelectedMerchant.Categories.ToList();
         }
