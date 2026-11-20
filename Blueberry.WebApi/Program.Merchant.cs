@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Runtime.ConstrainedExecution;
 using System.Text;
 using static System.Net.WebRequestMethods;
-static partial class Program
+public static class MerchantEndpoints
 {
     internal static void MapMerchantEndpoints(this WebApplication app)
     {

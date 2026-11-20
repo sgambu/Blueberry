@@ -1,8 +1,8 @@
 ﻿
-CREATE DATABASE Blueberry_Test;
+CREATE DATABASE Blueberry;
 GO
 
-USE Blueberry_Test;
+USE Blueberry;
 GO
 
 -- 1. Category

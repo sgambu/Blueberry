@@ -776,6 +776,11 @@
             errorMessage = "Veuillez sélectionner une catégorie pour le produit.";
             return;
         }
+        if (currentProductPriceDefault < 0)
+        {
+            errorMessage = "Le prix par défaut ne peut pas être négatif.";
+            return;
+        }
 
         isSubmitting = true;
 
