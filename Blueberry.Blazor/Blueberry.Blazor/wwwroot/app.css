@@ -442,6 +442,82 @@ h1:focus {
     color: #0f172a;
 }
 
+/* ==========================================================================
+   Tableau des Produits - Page EditProduct (Format compact sans défilement)
+   ========================================================================== */
+
+.edit-product-page .table-responsive {
+    overflow-x: auto;
+}
+
+.edit-product-page .categories-table {
+    width: 100%;
+    table-layout: auto;
+}
+
+.edit-product-page .categories-table thead th {
+    padding: 0.65rem 0.5rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.edit-product-page .categories-table tbody td {
+    padding: 0.55rem 0.5rem;
+    font-size: 0.88rem;
+    vertical-align: middle;
+}
+
+.edit-product-page .categories-table input[type="number"] {
+    min-width: 60px;
+}
+
+.edit-product-page .categories-table .col-product-name {
+    min-width: 130px;
+}
+
+.edit-product-page .categories-table .col-default-price {
+    width: 85px;
+    white-space: nowrap;
+}
+
+.edit-product-page .categories-table .col-taxes {
+    width: 75px;
+    white-space: nowrap;
+}
+
+.edit-product-page .categories-table .col-store-price {
+    width: 105px;
+}
+
+.edit-product-page .categories-table .col-store-price .input-group {
+    max-width: 105px;
+}
+
+.edit-product-page .categories-table .col-stock {
+    width: 100px;
+    white-space: nowrap;
+}
+
+.edit-product-page .categories-table .col-add-stock {
+    width: 120px;
+}
+
+.edit-product-page .categories-table .col-add-stock .input-group {
+    max-width: 110px;
+}
+
+.edit-product-page .categories-table .col-add-stock .input-group-text {
+    background-color: #2563eb;
+    color: #ffffff;
+    font-weight: 700;
+    border-color: #2563eb;
+}
+
+.edit-product-page .categories-table .col-add-stock .form-control:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 0.15rem rgba(37, 99, 235, 0.2);
+}
+
 .categories-page .section-divider {
     margin: 2.5rem 0 1.25rem 0;
     padding-bottom: 0.75rem;

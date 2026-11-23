@@ -300,9 +300,9 @@
 
         try
         {
-            if (id is not null)
+            if (!string.IsNullOrEmpty(id) && int.TryParse(id, out var parsedId) && parsedId != 0)
             {
-                merchantId = int.Parse(id);
+                merchantId = parsedId;
                 selectedMerchant = await Http.GetFromJsonAsync<Merchant>($"api/Merchants/{merchantId}") ?? new();
 
                 merchantProducts = await Http.GetFromJsonAsync<List<MerchantProduct>>($"api/MerchantProducts/{merchantId}") ?? new();
@@ -313,6 +313,13 @@
                     Price = mp.Price,
                     Stock = mp.Stock
                 }).ToList();
+            }
+            else
+            {
+                merchantId = 0;
+                selectedMerchant = new Merchant { IsActive = true };
+                merchantProducts = new();
+                oriMerchantProducts = new();
             }
 
             List<Category> allCategories = await Http.GetFromJsonAsync<List<Category>>("api/Categories") ?? new();
@@ -329,6 +336,10 @@
         catch (Exception ex)
         {
             errorMessage = $"Impossible de charger les données : {ex.Message}";
+            if (messageDialog is not null)
+            {
+                await messageDialog.ShowAsync("Erreur de chargement", errorMessage);
+            }
         }
         finally
         {
@@ -341,54 +352,103 @@
         errorMessage = null;
         successMessage = null;
 
+        // Validation côté client
+        if (string.IsNullOrWhiteSpace(selectedMerchant.Adresse))
+        {
+            errorMessage = "L'adresse du marchand est obligatoire.";
+            if (messageDialog is not null)
+            {
+                await messageDialog.ShowAsync("Validation", errorMessage);
+            }
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedMerchant.Phone))
+        {
+            errorMessage = "Le numéro de téléphone du marchand est obligatoire.";
+            if (messageDialog is not null)
+            {
+                await messageDialog.ShowAsync("Validation", errorMessage);
+            }
+            return;
+        }
+
         try
         {
-            if (id is null)
+            if (string.IsNullOrEmpty(id) || merchantId == 0)
             {
-                HttpResponseMessage response = await Http.PostAsJsonAsync("api/Merchants", selectedMerchant);
+                // Préparer un objet propre sans ID explicite pour l'insertion
+                var merchantToCreate = new Merchant
+                {
+                    Id = 0,
+                    Adresse = selectedMerchant.Adresse.Trim(),
+                    Phone = selectedMerchant.Phone.Trim(),
+                    IsActive = selectedMerchant.IsActive
+                };
+
+                HttpResponseMessage response = await Http.PostAsJsonAsync("api/Merchants", merchantToCreate);
 
                 if (response.IsSuccessStatusCode)
                 {
                     selectedMerchant = await response.Content.ReadFromJsonAsync<Merchant>() ?? new();
                     merchantId = selectedMerchant.Id;
+                    id = selectedMerchant.Id.ToString();
+                    MerchantState.SelectedMerchant = selectedMerchant;
                     successMessage = "Un nouveau commerçant a été créé avec succès !";
                     if (messageDialog is not null)
                     {
-                        messageDialog.Title = "Création réussie";
-                        messageDialog.Message = "Un nouveau commerçant a été créé avec succès !";
-                        await messageDialog.ShowAsync();
+                        await messageDialog.ShowAsync("Création réussie", successMessage);
                     }
+                    Navigation.NavigateTo($"/marchant-category/{merchantId}");
                 }
                 else
                 {
                     var msg = await response.Content.ReadAsStringAsync();
                     errorMessage = $"Erreur lors de la création d'un nouveau commerçant : {msg}";
+                    if (messageDialog is not null)
+                    {
+                        await messageDialog.ShowAsync("Erreur de création", errorMessage);
+                    }
                 }
             }
             else
             {
-                HttpResponseMessage response = await Http.PutAsJsonAsync($"api/Merchants/{selectedMerchant.Id}", selectedMerchant);
+                var merchantToUpdate = new Merchant
+                {
+                    Id = selectedMerchant.Id,
+                    Adresse = selectedMerchant.Adresse.Trim(),
+                    Phone = selectedMerchant.Phone.Trim(),
+                    IsActive = selectedMerchant.IsActive
+                };
+
+                HttpResponseMessage response = await Http.PutAsJsonAsync($"api/Merchants/{selectedMerchant.Id}", merchantToUpdate);
                 if (response.IsSuccessStatusCode)
                 {
+                    MerchantState.SelectedMerchant = selectedMerchant;
                     successMessage = "Le commerçant a été mis à jour avec succès !";
                     if (messageDialog is not null)
                     {
-                        messageDialog.Title = "Sauvegarde réussie";
-                        messageDialog.Message = "Le commerçant a été mis à jour avec succès !";
-                        await messageDialog.ShowAsync();
+                        await messageDialog.ShowAsync("Sauvegarde réussie", successMessage);
                     }
                 }
                 else
                 {
                     var msg = await response.Content.ReadAsStringAsync();
                     errorMessage = $"Erreur lors de la modification du commerçant : {msg}";
+                    if (messageDialog is not null)
+                    {
+                        await messageDialog.ShowAsync("Erreur de modification", errorMessage);
+                    }
                 }
             }
-            MerchantState.SelectedMerchant = selectedMerchant;
         }
         catch (Exception ex)
         {
-            errorMessage = $"Une erreur s'est produite : {ex.Message}";
+            errorMessage = $"Une erreur s'est produite lors de la sauvegarde : {ex.Message}";
+            if (messageDialog is not null)
+            {
+                await messageDialog.ShowAsync("Erreur de connexion", errorMessage);
+            }
         }
     }
 
@@ -435,18 +495,29 @@
                 Stock = mp.Stock
             }).ToList();
 
-            successMessage = "Les produits ont été sauvegardés avec succès !";
-
-            if (messageDialog is not null)
+            if (string.IsNullOrEmpty(errorMessage))
             {
-                messageDialog.Title = "Sauvegarde réussie";
-                messageDialog.Message = "Les produits ont été sauvegardés avec succès !";
-                await messageDialog.ShowAsync();
-            }    
+                successMessage = "Les produits ont été sauvegardés avec succès !";
+                if (messageDialog is not null)
+                {
+                    await messageDialog.ShowAsync("Sauvegarde réussie", successMessage);
+                }
+            }
+            else
+            {
+                if (messageDialog is not null)
+                {
+                    await messageDialog.ShowAsync("Erreur lors de la sauvegarde", errorMessage);
+                }
+            }
         }
         catch (Exception ex)
         {
             errorMessage = $"Une erreur s'est produite : {ex.Message}";
+            if (messageDialog is not null)
+            {
+                await messageDialog.ShowAsync("Erreur", errorMessage);
+            }
         }
     }
 
@@ -521,9 +592,7 @@
 
                 if (messageDialog is not null)
                 {
-                    messageDialog.Title = "Suppression du marchand";
-                    messageDialog.Message = msg;
-                    await messageDialog.ShowAsync();
+                    await messageDialog.ShowAsync("Suppression du marchand", msg);
                 }
 
                 Navigation.NavigateTo("/");
@@ -532,11 +601,19 @@
             {
                 var errorText = await response.Content.ReadAsStringAsync();
                 errorMessage = $"Erreur lors de la suppression du marchand : {errorText}";
+                if (messageDialog is not null)
+                {
+                    await messageDialog.ShowAsync("Erreur de suppression", errorMessage);
+                }
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"Une erreur s'est produite : {ex.Message}";
+            if (messageDialog is not null)
+            {
+                await messageDialog.ShowAsync("Erreur", errorMessage);
+            }
         }
     }
 

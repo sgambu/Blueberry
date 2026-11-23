@@ -1,4 +1,4 @@
-﻿@inject IJSRuntime JS
+@inject IJSRuntime JS
 
 <dialog @ref="dialog" class="message-dialog">
 
@@ -23,6 +23,15 @@
 
     public async Task ShowAsync()
     {
+        StateHasChanged();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("blueberryDialog.show", dialog);
+    }
+
+    public async Task ShowAsync(string title, string message)
+    {
+        Title = title;
+        Message = message;
         StateHasChanged();
         await Task.Yield();
         await JS.InvokeVoidAsync("blueberryDialog.show", dialog);

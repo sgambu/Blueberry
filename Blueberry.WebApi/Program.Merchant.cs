@@ -97,7 +97,17 @@ public static class MerchantEndpoints
 
         app.MapPost("/api/Merchants", async (BlueberryContext db, Merchant merchant) =>
         {
+            if (string.IsNullOrWhiteSpace(merchant.Adresse))
+            {
+                return Results.BadRequest("L'adresse du marchand est obligatoire.");
+            }
+
+            merchant.Id = 0;
             merchant.IsActive = true;
+            merchant.Categories = new List<Category>();
+            merchant.MerchantProducts = new List<MerchantProduct>();
+            merchant.Sales = new List<Sale>();
+
             db.Merchants.Add(merchant);
             await db.SaveChangesAsync();
             return Results.Created($"/api/Merchants/{merchant.Id}", merchant);
@@ -105,16 +115,16 @@ public static class MerchantEndpoints
 
         app.MapPut("/api/Merchants/{merchantId}", async (BlueberryContext db, int merchantId, Merchant updatedMerchant) =>
         {
-            var merchant = await db.Merchants.FindAsync(merchantId);
-            if (merchant == null)
-            {
-                return Results.NotFound();
-            }
-            merchant.Adresse = updatedMerchant.Adresse;
-            merchant.Phone = updatedMerchant.Phone;
-            merchant.IsActive = updatedMerchant.IsActive;
-            await db.SaveChangesAsync();
-            return Results.NoContent();
+                var merchant = await db.Merchants.FindAsync(merchantId);
+                if (merchant == null)
+                {
+                    return Results.NotFound();
+                }
+                merchant.Adresse = updatedMerchant.Adresse;
+                merchant.Phone = updatedMerchant.Phone;
+                merchant.IsActive = updatedMerchant.IsActive;
+                await db.SaveChangesAsync();
+                return Results.NoContent();
         });
 
         app.MapDelete("/api/Merchants/{merchantId}", async (int merchantId, BlueberryContext db) =>

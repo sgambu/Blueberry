@@ -150,15 +150,14 @@
             else
             {
                 <div class="table-responsive">
-                    <table class="table categories-table align-middle" style="min-width: 860px;">
+                    <table class="table categories-table align-middle">
                         <thead>
                             <tr>
-                                <th style="min-width: 180px;">Nom</th>
-                                <th style="width: 130px; min-width: 130px;">Prix par défaut</th>
-                                <th style="width: 130px; min-width: 130px;">Taxes</th>
-                                <th style="width: 175px; min-width: 175px;">Prix Magasin</th>
-                                <th style="width: 140px; min-width: 140px;">Stock actuel</th>
-                                <th style="width: 165px; min-width: 165px;">Ajouter Quantité</th>
+                                <th class="col-product-name">Nom</th>
+                                <th class="col-default-price text-center">Prix défaut</th>
+                                <th class="col-store-price">Prix Magasin</th>
+                                <th class="col-stock text-center">Stock actuel</th>
+                                <th class="col-add-stock text-primary fw-bold">➕ Ajouter Quantité</th>
                             </tr>
                         </thead>
 
@@ -174,39 +173,28 @@
                                     var displayPrice = mod?.NewPrice ?? marProduct.Price;
 
                                     <tr @key="product.Id" class="@(isModified ? "selected-row" : "")">
-                                        <td class="col-name" style="min-width: 180px;">
+                                        <td class="col-product-name">
                                             <strong>@product.Name</strong>
                                             @if (isModified)
                                             {
-                                                <span class="badge badge-active ms-2">Modifié</span>
+                                                <span class="badge badge-active ms-1" style="font-size: 0.72rem; padding: 0.2rem 0.4rem;">Modifié</span>
                                             }
                                         </td>
-                                        <td class="text-muted" style="width: 130px;">
+                                        <td class="col-default-price text-center text-muted">
                                             @product.PriceDefault.ToString("C")
                                         </td>
-                                        <td style="width: 130px;">
-                                            @if (cat != null)
-                                            {
-                                                <div class="d-flex gap-1 flex-wrap">
-                                                    @if (cat.Tps) { <span class="badge badge-tps">TPS</span> }
-                                                    @if (cat.Tvq) { <span class="badge badge-tvq">TVQ</span> }
-                                                    @if (!cat.Tps && !cat.Tvq) { <span class="badge badge-none">Exonéré</span> }
-                                                </div>
-                                            }
-                                        </td>
-                                        <td style="width: 175px; min-width: 175px;">
-                                            <div class="input-group input-group-sm" style="width: 155px; min-width: 155px; flex-wrap: nowrap;">
-                                                <span class="input-group-text">$</span>
+                                        <td class="col-store-price">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text px-1">$</span>
                                                 <input type="number"
                                                        step="0.01"
                                                        min="0"
-                                                       class="form-control"
-                                                       style="min-width: 95px;"
+                                                       class="form-control px-2 text-end"
                                                        value="@displayPrice.ToString("0.00", CultureInfo.InvariantCulture)"
                                                        @onchange="e => UpdatePrice(product, e.Value?.ToString())" />
                                             </div>
                                         </td>
-                                        <td style="width: 140px; min-width: 140px;">
+                                        <td class="col-stock text-center">
                                             <span class="badge @(marProduct.Stock <= 0 ? "bg-danger text-white" : (marProduct.Stock < 6 ? "badge-tvq" : "badge-active"))">
                                                 @marProduct.Stock en stock
                                             </span>
@@ -215,14 +203,13 @@
                                                 <small class="text-success fw-bold ms-1">(+@mod.QuantityToAdd)</small>
                                             }
                                         </td>
-                                        <td style="width: 165px; min-width: 165px;">
-                                            <div class="input-group input-group-sm" style="width: 145px; min-width: 145px; flex-wrap: nowrap;">
-                                                <span class="input-group-text">+</span>
+                                        <td class="col-add-stock">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text px-2">+</span>
                                                 <input type="number"
                                                        min="0"
-                                                       class="form-control"
-                                                       style="min-width: 85px;"
-                                                       placeholder="Quantité"
+                                                       class="form-control px-2 text-center"
+                                                       placeholder="0"
                                                        value="@(mod?.QuantityToAdd > 0 ? mod.QuantityToAdd.ToString() : "")"
                                                        @onchange="e => UpdateQuantity(product, e.Value?.ToString())" />
                                             </div>
@@ -523,14 +510,16 @@
 
             if (messageDialog is not null)
             {
-                messageDialog.Title = "Sauvegarde réussie";
-                messageDialog.Message = "Les produits ont été sauvegardés avec succès !";
-                await messageDialog.ShowAsync();
+                await messageDialog.ShowAsync("Sauvegarde réussie", "Les produits ont été sauvegardés avec succès !");
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"Une erreur s'est produite : {ex.Message}";
+            if (messageDialog is not null)
+            {
+                await messageDialog.ShowAsync("Erreur", errorMessage);
+            }
         }
     }
 }
