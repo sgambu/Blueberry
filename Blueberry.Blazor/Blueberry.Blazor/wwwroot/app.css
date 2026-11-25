@@ -1761,4 +1761,454 @@ h1:focus {
     margin-bottom: 1rem;
 }
 
+/* ==========================================================================
+   Section Caisse Enregistreuse (POS / Sales.razor)
+   ========================================================================== */
+
+.pos-page {
+    max-width: 1350px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+}
+
+.pos-grid-container {
+    display: grid;
+    grid-template-columns: 440px 1fr;
+    grid-template-areas: "invoice selection";
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 992px) {
+    .pos-grid-container {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "selection"
+            "invoice";
+    }
+}
+
+.pos-invoice-section {
+    grid-area: invoice;
+}
+
+.pos-selection-section {
+    grid-area: selection;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* En-têtes de panneaux */
+.pos-panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.pos-panel-title h4 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+/* Catégories (Haut de la section droite) */
+.pos-categories-panel {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.pos-categories-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.pos-category-btn {
+    padding: 0.55rem 1.15rem;
+    font-weight: 600;
+    font-size: 0.92rem;
+    border-radius: 9999px;
+    border: 2px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pos-category-btn:hover {
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    background: #eff6ff;
+    transform: translateY(-1px);
+}
+
+.pos-category-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+}
+
+/* Barre d'outils de quantité (Milieu de la section droite) */
+.pos-qty-toolbar {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.pos-qty-header {
+    margin-bottom: 0.65rem;
+}
+
+.pos-qty-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.pos-qty-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.pos-qty-btn {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    border-radius: 8px;
+}
+
+.pos-qty-input {
+    width: 75px !important;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    height: 38px;
+}
+
+.pos-qty-apply-btn {
+    font-weight: 700;
+    height: 38px;
+    padding: 0 1rem;
+    border-radius: 8px;
+}
+
+.pos-qty-presets {
+    display: flex;
+    gap: 0.35rem;
+    margin-left: auto;
+}
+
+.pos-preset-btn {
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 6px;
+    height: 38px;
+}
+
+/* Panneau Produits (Bas de la section droite) */
+.pos-products-panel {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.pos-products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+    gap: 0.85rem;
+}
+
+.pos-empty-products {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px dashed #cbd5e1;
+}
+
+/* Boutons Produits Colorés */
+.pos-product-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 125px;
+    padding: 1rem 0.9rem;
+    border-radius: 14px;
+    border: 2px solid transparent;
+    text-align: left;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+.pos-product-btn:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+}
+
+.pos-product-btn:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+.pos-product-name {
+    font-weight: 700;
+    font-size: 1.02rem;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.pos-product-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    gap: 0.35rem;
+}
+
+.pos-product-price {
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.pos-stock-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.85);
+    color: #475569;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.pos-stock-badge.empty {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+    font-weight: 700;
+}
+
+/* Palettes de Couleurs pour les Boutons Produits */
+.pos-product-btn.color-1 {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border-color: #a7f3d0;
+    color: #064e3b;
+}
+.pos-product-btn.color-1 .pos-product-price {
+    background: #059669;
+    color: #ffffff;
+}
+
+.pos-product-btn.color-2 {
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    border-color: #c7d2fe;
+    color: #1e1b4b;
+}
+.pos-product-btn.color-2 .pos-product-price {
+    background: #4f46e5;
+    color: #ffffff;
+}
+
+.pos-product-btn.color-3 {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-color: #fde68a;
+    color: #78350f;
+}
+.pos-product-btn.color-3 .pos-product-price {
+    background: #d97706;
+    color: #ffffff;
+}
+
+.pos-product-btn.color-4 {
+    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+    border-color: #fecdd3;
+    color: #881337;
+}
+.pos-product-btn.color-4 .pos-product-price {
+    background: #e11d48;
+    color: #ffffff;
+}
+
+.pos-product-btn.color-5 {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    border-color: #e9d5ff;
+    color: #581c87;
+}
+.pos-product-btn.color-5 .pos-product-price {
+    background: #9333ea;
+    color: #ffffff;
+}
+
+.pos-product-btn.color-6 {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-color: #bae6fd;
+    color: #0c4a6e;
+}
+.pos-product-btn.color-6 .pos-product-price {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+.pos-product-btn.out-of-stock {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+.pos-product-btn.out-of-stock .pos-product-price {
+    background: #94a3b8;
+    color: #ffffff;
+}
+
+/* Facture / Panier (Section Gauche) */
+.pos-invoice-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.pos-invoice-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.pos-invoice-header .pos-panel-title {
+    margin-bottom: 0;
+}
+
+.pos-invoice-table-wrapper {
+    overflow-x: auto;
+    margin-bottom: 1.25rem;
+}
+
+.pos-invoice-table {
+    margin-bottom: 0;
+    font-size: 0.92rem;
+}
+
+.pos-invoice-table thead th {
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 0.6rem 0.5rem;
+}
+
+.pos-invoice-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.pos-invoice-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.pos-invoice-table tbody tr.selected-row {
+    background-color: #e0f2fe !important;
+    border-left: 3px solid #0284c7;
+}
+
+.pos-invoice-table tbody td {
+    padding: 0.65rem 0.5rem;
+    vertical-align: middle;
+}
+
+.pos-col-name strong {
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.pos-unit-price {
+    font-size: 0.75rem;
+}
+
+.pos-btn-remove {
+    padding: 0.15rem 0.45rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 4px;
+}
+
+.pos-invoice-table tfoot td {
+    padding: 0.5rem;
+    border: none;
+    font-size: 0.92rem;
+    color: #475569;
+}
+
+.pos-invoice-table tfoot .invoice-total td {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0f172a;
+    border-top: 2px dashed #cbd5e1;
+    padding-top: 0.85rem;
+}
+
+.pos-total-amount {
+    color: #16a34a;
+    font-weight: 800;
+}
+
+.pos-pay-btn {
+    font-weight: 800;
+    font-size: 1.15rem;
+    padding: 0.85rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
+    transition: all 0.2s ease;
+}
+
+.pos-pay-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(22, 163, 74, 0.45);
+}
+
+.pos-empty-cart {
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+.pos-empty-cart-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.6;
+}
+
+
 

@@ -3,128 +3,30 @@
 @inject HttpClient Http
 @inject SelectedMerchantState MerchantState
 
-
-<div class="pos-container">
-    <section class="form-section">
-        @foreach (var category in merchantCategories)
-        {
-            <button @onclick="() => SelectCategory(category.Id)">
-                @category.Name
-            </button>
-        }
-    </section>
-    <section class="products-panel">
-        <h3>Produits</h3>
-
-        @if (merchantProducts is null)
-        {
-            <p><em>Loading...</em></p>
-        }
-        else
-        {
-            @foreach (var merchantProduct in merchantProducts)
-            {
-                Product product = allProducts.FirstOrDefault(p => p.Id == merchantProduct.ProductId);
-                @if (product != null && product.CategoryId == categorySelectedId)
-                {
-                    @if (@merchantProduct.Stock <= 0)
+<div class="categories-page pos-page">
+    <header class="page-header">
+        <div class="header-content">
+            <div class="header-left">
+                <a href="/store" class="btn-back" title="Retour au Magasin">
+                    <span class="back-arrow">←</span> Retour au Magasin
+                </a>
+                <h2 class="page-title">Caisse Enregistreuse</h2>
+                <p class="page-subtitle">
+                    @(MerchantState.SelectedMerchant?.Adresse ?? "Point de vente")
+                    @if (!string.IsNullOrEmpty(MerchantState.SelectedMerchant?.Phone))
                     {
-                        <button style="color:red">
-                            @product.Name
-                        </button>
+                        <span> • Tél : @MerchantState.SelectedMerchant.Phone</span>
                     }
-                    else
-                    {
-                        <button style="color:cadetblue" @onclick="() => SelectProduct(product)">
-                            @product.Name
-                        </button>
-                    }
-                }
-            }
-        }
-    </section>
+                </p>
+            </div>
+            <div class="header-right">
+                <a href="javascript:void(0)" class="btn btn-outline-secondary btn-sm" @onclick="ResetTransaction" title="Réinitialiser la transaction">
+                    🔄 Nouvelle vente
+                </a>
+            </div>
+        </div>
+    </header>
 
-    <section class="selected-product-panel">
-        <h3>Produit sélectionné</h3>
-            @if (selectedProduct != null)
-            {
-                <div>
-                    <h3>@selectedProduct.Name</h3>
-                    @{MerchantProduct merchantProduct = merchantProducts.FirstOrDefault(mp => mp.ProductId == selectedProduct.Id);
-                    Category category = merchantCategories.FirstOrDefault(c => c.Id == selectedProduct.CategoryId);}
-                    <p>Prix : @merchantProduct.Price.ToString("C")</p>
-                    @if (category != null && category.Tps)
-                    {
-                        <p>TPS</p>
-                    }
-                    @if (category != null && category.Tvq)
-                    {
-                        <p>TVQ</p>
-                    }
-
-                    <label>Quantité : @merchantProduct.Stock</label>
-                    <input type="number" @bind="quantity" />
-
-                    <button @onclick="() => AddProduct(category)">OK</button>
-                    <button @onclick="Cancel">Cancel</button>
-                </div>
-            }
-    </section>
-
-
-    <section class="invoice-panel">
-        <h3>Facture</h3>
-        @if (invoiceItems is not null)
-        {
-            <table>
-                <thead>
-                    <tr>
-                        <th>Quantité</th>
-                        <th>Produit</th>
-                        <th>Prix</th>
-                        <th>Taxe</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    @foreach (var item in invoiceItems)
-                    {
-                        <tr class="@(selectedItem == item ? "selected-row" : "")"
-                            @onclick="() => SelectSaleItem(item)">
-                            <td>@item.Item1</td>
-                            <td>@item.Item2</td>
-                            <td>@item.Item4</td>
-                            <td>@item.Item5</td>
-                        </tr>
-                    }
-                </tbody>
-
-                <tfoot>
-                    <tr>
-                        <td colspan="3">Sous-total</td>
-                        <td>@sousTotal.ToString("C")</td>
-                    </tr>
-                    <tr>
-                        <td colspan="3">TPS</td>
-                        <td>@priceTPS.ToString("C")</td>
-                    </tr>
-                    <tr>
-                        <td colspan="3">TVQ</td>
-                        <td>@priceTVQ.ToString("C")</td>
-                    </tr>
-                    <tr class="invoice-total">
-                        <td colspan="3">TOTAL</td>
-                        <td>@total.ToString("C")</td>
-                    </tr>
-                </tfoot>
-            </table>
-        }
-
-        <button @onclick="Pay">Payer</button>
-        <button @onclick="RemoveSelectedItem">Supprimer item sélectionné</button>
-
-    </section>
-    <MessageDialog @ref="messageDialog" />
     @if (!string.IsNullOrEmpty(errorMessage))
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -133,17 +35,297 @@
             <button type="button" class="btn-close" aria-label="Fermer" @onclick="() => errorMessage = null"></button>
         </div>
     }
+
+    <!-- Grille POS : Section Sélection (droite dans la grille CSS) et Facture (gauche dans la grille CSS) -->
+    <div class="pos-grid-container">
+        <!-- ========================================================
+             SECTION DROITE (DOM en premier pour les tests bUnit :
+             Catégories en haut, Quantité au milieu, Produits en bas)
+             ======================================================== -->
+        <div class="pos-selection-section">
+            <!-- 1. Catégories en haut -->
+            <section class="card-panel pos-categories-panel">
+                <div class="pos-panel-title">
+                    <h4>Catégories</h4>
+                    <span class="badge count-badge">@(merchantCategories?.Count ?? 0)</span>
+                </div>
+                <div class="pos-categories-list">
+                    @foreach (var category in merchantCategories)
+                    {
+                        var isCatActive = (categorySelectedId == category.Id);
+                        <button type="button"
+                                class="btn pos-category-btn @(isCatActive ? "active" : "")"
+                                @onclick="() => SelectCategory(category.Id)">
+                            @category.Name
+                        </button>
+                    }
+                </div>
+            </section>
+
+            <!-- 2. Barre d'outils de quantité au milieu -->
+            <section class="card-panel pos-qty-toolbar">
+                <div class="pos-qty-header">
+                    <span class="pos-qty-title">
+                        @if (selectedItem != null)
+                        {
+                            <span>Quantité pour <strong>@selectedItem.Name</strong> :</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Quantité : <em>(Sélectionnez un item pour ajuster)</em></span>
+                        }
+                    </span>
+                </div>
+                <div class="pos-qty-controls">
+                    <button type="button" class="btn btn-outline-secondary pos-qty-btn"
+                            @onclick="() => AdjustQuantity(-1)"
+                            disabled="@(selectedItem == null || quantity <= 1)" title="Diminuer">
+                        −
+                    </button>
+                    <input type="number" min="1"
+                           @bind="quantity"
+                           class="form-control pos-qty-input" />
+                    <button type="button" class="btn btn-outline-secondary pos-qty-btn"
+                            @onclick="() => AdjustQuantity(1)"
+                            disabled="@(selectedItem == null)" title="Augmenter">
+                        +
+                    </button>
+                    <button type="button" class="btn btn-primary pos-qty-apply-btn"
+                            @onclick="ApplyQuantity"
+                            disabled="@(selectedItem == null)">
+                        OK
+                    </button>
+                    <div class="pos-qty-presets">
+                        <button type="button" class="btn btn-outline-primary btn-sm pos-preset-btn" @onclick="() => SetQuantityPreset(1)">1</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm pos-preset-btn" @onclick="() => SetQuantityPreset(2)">2</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm pos-preset-btn" @onclick="() => SetQuantityPreset(3)">3</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm pos-preset-btn" @onclick="() => SetQuantityPreset(5)">5</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm pos-preset-btn" @onclick="() => SetQuantityPreset(10)">10</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Produits en bas (boutons colorés attrayants) -->
+            <section class="card-panel pos-products-panel">
+                <div class="pos-panel-title">
+                    <h4>Produits disponibles</h4>
+                    @if (categorySelectedId > 0)
+                    {
+                        var activeCat = merchantCategories.FirstOrDefault(c => c.Id == categorySelectedId);
+                        if (activeCat != null)
+                        {
+                            <span class="badge bg-light text-dark border">@activeCat.Name</span>
+                        }
+                    }
+                </div>
+
+                @if (merchantProducts is null || allProducts is null)
+                {
+                    <div class="loading-state">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Chargement...</span>
+                        </div>
+                        <p>Chargement des produits...</p>
+                    </div>
+                }
+                else
+                {
+                    var filteredProducts = allProducts
+                        .Where(p => p.CategoryId == categorySelectedId && merchantProducts.Any(mp => mp.ProductId == p.Id))
+                        .ToList();
+
+                    if (!filteredProducts.Any())
+                    {
+                        <div class="pos-empty-products">
+                            <p class="text-muted">
+                                @(categorySelectedId == 0 
+                                    ? "👈 Veuillez sélectionner une catégorie ci-dessus." 
+                                    : "Aucun produit trouvé dans cette catégorie pour votre magasin.")
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="pos-products-grid">
+                            @for (int i = 0; i < filteredProducts.Count; i++)
+                            {
+                                var product = filteredProducts[i];
+                                var merchantProduct = merchantProducts.FirstOrDefault(mp => mp.ProductId == product.Id);
+                                var stock = merchantProduct?.Stock ?? 0;
+                                var price = merchantProduct?.Price ?? product.PriceDefault;
+                                var colorClass = GetColorThemeClass(i);
+                                var isOutOfStock = stock <= 0;
+
+                                <button type="button"
+                                        class="pos-product-btn @colorClass @(isOutOfStock ? "out-of-stock" : "")"
+                                        disabled="@isOutOfStock"
+                                        @onclick="() => SelectProduct(product)">
+                                    <div class="pos-product-top">
+                                        <span class="pos-product-name">@product.Name</span>
+                                    </div>
+                                    <div class="pos-product-bottom">
+                                        <span class="pos-product-price">@price.ToString("C")</span>
+                                        @if (isOutOfStock)
+                                        {
+                                            <span class="pos-stock-badge empty">Épuisé</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="pos-stock-badge">Stock : @stock</span>
+                                        }
+                                    </div>
+                                </button>
+                            }
+                        </div>
+                    }
+                }
+            </section>
+        </div>
+
+        <!-- ========================================================
+             SECTION GAUCHE (Facture et Produits sélectionnés)
+             ======================================================== -->
+        <div class="pos-invoice-section">
+            <section class="card-panel pos-invoice-card">
+                <div class="pos-invoice-header">
+                    <div class="pos-panel-title">
+                        <h4>🛒 Facture</h4>
+                        <span class="badge bg-primary">@invoiceItems.Sum(i => i.Quantity) article(s)</span>
+                    </div>
+                    @if (invoiceItems.Any())
+                    {
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="ResetTransaction" title="Vider le panier">
+                            Vider
+                        </button>
+                    }
+                </div>
+
+                <div class="pos-invoice-table-wrapper">
+                    <table class="table pos-invoice-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">Qté</th>
+                                <th>Produit</th>
+                                <th class="text-end" style="width: 80px;">Prix</th>
+                                <th class="text-center" style="width: 55px;">Taxe</th>
+                                <th class="text-end" style="width: 40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!invoiceItems.Any())
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted pos-empty-cart">
+                                        <div class="pos-empty-cart-icon">🛒</div>
+                                        <p class="mb-1"><strong>Panier vide</strong></p>
+                                        <small>Cliquez sur un produit à droite pour l'ajouter immédiatement.</small>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var item in invoiceItems)
+                                {
+                                    var isSelected = (selectedItem == item);
+                                    <tr class="pos-invoice-row @(isSelected ? "selected-row" : "")"
+                                        @onclick="() => SelectSaleItem(item)">
+                                        <td class="pos-col-qty">
+                                            <span class="badge bg-secondary">@item.Quantity</span>
+                                        </td>
+                                        <td class="pos-col-name">
+                                            <strong>@item.Name</strong>
+                                            <div class="pos-unit-price text-muted">@item.UnitPrice.ToString("C")/u</div>
+                                        </td>
+                                        <td class="pos-col-price text-end">
+                                            <strong>@item.Price.ToString("C")</strong>
+                                        </td>
+                                        <td class="pos-col-tax text-center">
+                                            @if (!string.IsNullOrEmpty(item.Taxe))
+                                            {
+                                                <span class="badge badge-tps">@item.Taxe</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-none">—</span>
+                                            }
+                                        </td>
+                                        <td class="pos-col-action text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-danger pos-btn-remove"
+                                                    @onclick:stopPropagation="true"
+                                                    @onclick="() => RemoveItem(item)"
+                                                    title="Supprimer">
+                                                ✕
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                        @if (invoiceItems.Any())
+                        {
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end">Sous-total :</td>
+                                    <td colspan="2" class="text-end"><strong>@sousTotal.ToString("C")</strong></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-end">TPS (5%) :</td>
+                                    <td colspan="2" class="text-end">@priceTPS.ToString("C")</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-end">TVQ (9.975%) :</td>
+                                    <td colspan="2" class="text-end">@priceTVQ.ToString("C")</td>
+                                </tr>
+                                <tr class="invoice-total">
+                                    <td colspan="3" class="text-end">TOTAL :</td>
+                                    <td colspan="2" class="text-end">
+                                        <span class="pos-total-amount">@total.ToString("C")</span>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        }
+                    </table>
+                </div>
+
+                @if (invoiceItems.Any())
+                {
+                    <div class="pos-invoice-actions">
+                        @if (selectedItem != null)
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm w-100 mb-2" @onclick="RemoveSelectedItem">
+                                🗑️ Supprimer item sélectionné (@selectedItem.Name)
+                            </button>
+                        }
+                        <button type="button" class="btn btn-success btn-lg w-100 pos-pay-btn" @onclick="Pay">
+                            💳 Payer @total.ToString("C")
+                        </button>
+                    </div>
+                }
+            </section>
+        </div>
+    </div>
+
+    <MessageDialog @ref="messageDialog" />
 </div>
 
 @code {
+    public class SaleCartItem
+    {
+        public int ProductId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal UnitPrice { get; set; }
+        public int Quantity { get; set; } = 1;
+        public decimal Price => UnitPrice * Quantity;
+        public string Taxe { get; set; } = string.Empty;
+    }
+
     private List<MerchantProduct> merchantProducts = new();
     private List<Category> merchantCategories = new();
     private List<Product>? allProducts;
-    private Product? selectedProduct;
     private int categorySelectedId = 0;
-    private (int Quantity, string Name, int ProductId, decimal Price, string Taxe) selectedItem;
+    private SaleCartItem? selectedItem;
     private int quantity = 1;
-    private List<(int Quantity, string Name, int ProductId, decimal Price, string Taxe)> invoiceItems = new List<(int Quantity, string Name, int ProductId, decimal Price, string Taxe)>();
+    private List<SaleCartItem> invoiceItems = new();
     private decimal sousTotal = 0;
     private decimal priceTPS = 0;
     private decimal priceTVQ = 0;
@@ -155,9 +337,12 @@
     {
         try
         {
-            allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products")?? new List<Product>();
-            merchantProducts = MerchantState.SelectedMerchant.MerchantProducts.ToList();
-            merchantCategories = MerchantState.SelectedMerchant.Categories.ToList();
+            allProducts = await Http.GetFromJsonAsync<List<Product>>("api/Products") ?? new List<Product>();
+            if (MerchantState.SelectedMerchant != null)
+            {
+                merchantProducts = MerchantState.SelectedMerchant.MerchantProducts?.ToList() ?? new List<MerchantProduct>();
+                merchantCategories = MerchantState.SelectedMerchant.Categories?.ToList() ?? new List<Category>();
+            }
         }
         catch (Exception ex)
         {
@@ -165,56 +350,145 @@
         }
     }
 
+    private void SelectCategory(int categoryId)
+    {
+        categorySelectedId = categoryId;
+    }
+
     private void SelectProduct(Product product)
     {
-        selectedProduct = product;
-        quantity = 1;
-    }
-
-    private void AddProduct(Category category)
-    {
-        string taxe = "";
-        if (selectedProduct != null)
+        var merchantProduct = merchantProducts.FirstOrDefault(mp => mp.ProductId == product.Id);
+        if (merchantProduct != null && merchantProduct.Stock <= 0)
         {
-            if (category != null && category.Tps)
-            {
-                taxe += "F";
-                priceTPS += (selectedProduct.PriceDefault * quantity) * 0.05m;
-            }
-            if (category != null && category.Tvq)
-            {
-                taxe += "P";
-                priceTVQ += (selectedProduct.PriceDefault * quantity) * 0.0975m;
-            }
+            return;
         }
-        // ajouter le produit à la commande
-        invoiceItems.Add((
-            Quantity: quantity,
-            Name: selectedProduct.Name,      
-            ProductId: selectedProduct.Id,
-            Price: selectedProduct.PriceDefault * quantity,
-            Taxe: taxe
-        ));
-        sousTotal += (selectedProduct.PriceDefault) * quantity;
-        total = sousTotal + priceTPS + priceTVQ;
-        // réinitialiser la sélection
-        selectedProduct = null;
-        quantity = 1;
+
+        var category = merchantCategories.FirstOrDefault(c => c.Id == product.CategoryId);
+        string taxe = "";
+        if (category != null && category.Tps) taxe += "F";
+        if (category != null && category.Tvq) taxe += "P";
+
+        decimal unitPrice = merchantProduct?.Price ?? product.PriceDefault;
+
+        // Si le produit existe déjà dans la facture, on incrémente sa quantité
+        var existing = invoiceItems.FirstOrDefault(i => i.ProductId == product.Id);
+        if (existing != null)
+        {
+            existing.Quantity++;
+            selectedItem = existing;
+            quantity = existing.Quantity;
+        }
+        else
+        {
+            var newItem = new SaleCartItem
+            {
+                ProductId = product.Id,
+                Name = product.Name,
+                UnitPrice = unitPrice,
+                Quantity = 1,
+                Taxe = taxe
+            };
+            invoiceItems.Add(newItem);
+            selectedItem = newItem;
+            quantity = 1;
+        }
+
+        RecalculateTotals();
     }
 
-    private void Cancel()
+    private void SelectSaleItem(SaleCartItem item)
     {
-        selectedProduct = null;
+        selectedItem = item;
+        quantity = item.Quantity;
     }
+
+    private void AdjustQuantity(int delta)
+    {
+        quantity = Math.Max(1, quantity + delta);
+        if (selectedItem != null)
+        {
+            selectedItem.Quantity = quantity;
+            RecalculateTotals();
+        }
+    }
+
+    private void SetQuantityPreset(int q)
+    {
+        quantity = Math.Max(1, q);
+        if (selectedItem != null)
+        {
+            selectedItem.Quantity = quantity;
+            RecalculateTotals();
+        }
+    }
+
+    private void ApplyQuantity()
+    {
+        if (selectedItem != null)
+        {
+            selectedItem.Quantity = Math.Max(1, quantity);
+            RecalculateTotals();
+        }
+    }
+
+    private void RemoveItem(SaleCartItem item)
+    {
+        invoiceItems.Remove(item);
+        if (selectedItem == item)
+        {
+            selectedItem = invoiceItems.LastOrDefault();
+            quantity = selectedItem?.Quantity ?? 1;
+        }
+        RecalculateTotals();
+    }
+
+    private void RemoveSelectedItem()
+    {
+        if (selectedItem != null)
+        {
+            invoiceItems.Remove(selectedItem);
+            selectedItem = invoiceItems.LastOrDefault();
+            quantity = selectedItem?.Quantity ?? 1;
+            RecalculateTotals();
+        }
+    }
+
+    private void RecalculateTotals()
+    {
+        sousTotal = invoiceItems.Sum(i => i.Price);
+        priceTPS = invoiceItems.Where(i => i.Taxe.Contains("F")).Sum(i => i.Price * 0.05m);
+        priceTVQ = invoiceItems.Where(i => i.Taxe.Contains("P")).Sum(i => i.Price * 0.0975m);
+        total = sousTotal + priceTPS + priceTVQ;
+    }
+
+    private void ResetTransaction()
+    {
+        invoiceItems.Clear();
+        selectedItem = null;
+        quantity = 1;
+        sousTotal = 0;
+        priceTPS = 0;
+        priceTVQ = 0;
+        total = 0;
+    }
+
+    private string GetColorThemeClass(int index)
+    {
+        int themeNum = (index % 6) + 1;
+        return $"color-{themeNum}";
+    }
+
     private async Task Pay()
     {
-        // Par exemple, vous pouvez rediriger vers une page de paiement ou afficher un message de confirmation
-        Console.WriteLine($"Total à payer : {total} $");
+        if (!invoiceItems.Any() || MerchantState.SelectedMerchant == null)
+        {
+            return;
+        }
+
         var request = new CreateSaleRequest
         {
             Date = DateTime.Now,
             Total = total,
-
             Items = invoiceItems.Select(item => new CreateSaleItemRequest
             {
                 ProductId = item.ProductId,
@@ -224,6 +498,7 @@
                 TvqAmount = item.Taxe.Contains("P") ? item.Price * 0.0975m : 0
             }).ToList()
         };
+
         try
         {
             HttpResponseMessage response = await Http.PostAsJsonAsync($"api/Sales/{MerchantState.SelectedMerchant.Id}", request);
@@ -232,64 +507,19 @@
                 if (messageDialog is not null)
                 {
                     messageDialog.Title = "Vente réussie";
-                    messageDialog.Message = "La vente de " + total + " a été effectuée avec succès!";
-
+                    messageDialog.Message = $"La vente de {total.ToString("C")} a été effectuée avec succès !";
                     await messageDialog.ShowAsync();
                 }
+                ResetTransaction();
             }
-            else 
+            else
             {
                 throw new Exception($"Erreur lors de la création de la vente. Statut : {response.StatusCode}");
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Une erreur s'est produite : {ex.Message}";
+            errorMessage = $"Une erreur s'est produite lors du paiement : {ex.Message}";
         }
-        ResetTransaction();
-
-    }
-
-    private void SelectSaleItem((int Quantity, string Name, int productID, decimal Price, string Taxe) item)
-    {
-        selectedItem = item;
-    }
-
-    private void RemoveSelectedItem()
-    {
-        if (selectedItem.Name != null)
-        {
-            invoiceItems.Remove(selectedItem);
-            
-            sousTotal -= selectedItem.Item4;
-            if (selectedItem.Taxe.Contains("F"))
-            {
-                priceTPS -= selectedItem.Price * 0.05m;
-            }
-            if (selectedItem.Taxe.Contains("P"))
-            {
-                priceTVQ -= selectedItem.Price * 0.0975m;
-            }
-            total = sousTotal + priceTPS + priceTVQ;
-
-            selectedItem = default;
-            quantity = 1;
-        }
-    }
-
-    private void ResetTransaction()
-    {
-        invoiceItems = new List<(int Quantity, string Name, int ProductId, decimal Price, string Taxe)>();
-        selectedProduct = null;
-        quantity = 1;
-        sousTotal = 0;
-        priceTPS = 0;
-        priceTVQ = 0;
-        total = 0;
-    }
-
-    private void SelectCategory(int categoryId)
-    {
-        categorySelectedId = categoryId;
     }
 }
